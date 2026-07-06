@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?if $(sys.BUILDARCH)="x86"?>
+    <?define Win64 = "no" ?>
+<?elseif $(sys.BUILDARCH)="x64"?>
+    <?define Win64 = "yes" ?>
+<?elseif $(sys.BUILDARCH)="arm64"?>
+    <?define Win64 = "yes" ?>
+<?else?>
+    <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <DirectoryRef Id="INSTALLDIR">
+            <Component
+                Id="MarkdownDefaultAppRegistration"
+                Guid="80e8c7e3-846e-430b-bb03-a22e72048ab5"
+                Win64="$(var.Win64)">
+                <RegistryKey Root="HKLM" Key="Software\RegisteredApplications">
+                    <RegistryValue
+                        Name="MD 极简阅读"
+                        Type="string"
+                        Value="Software\onlymd\MD极简阅读\Capabilities"
+                        KeyPath="yes" />
+                </RegistryKey>
+
+                <RegistryKey Root="HKLM" Key="Software\onlymd\MD极简阅读\Capabilities">
+                    <RegistryValue
+                        Name="ApplicationName"
+                        Type="string"
+                        Value="MD 极简阅读" />
+                    <RegistryValue
+                        Name="ApplicationDescription"
+                        Type="string"
+                        Value="本地 Markdown 阅读器" />
+                    <RegistryKey Key="FileAssociations">
+                        <RegistryValue Name=".md" Type="string" Value="OnlyMdReader.Markdown" />
+                        <RegistryValue Name=".markdown" Type="string" Value="OnlyMdReader.Markdown" />
+                    </RegistryKey>
+                    <RegistryKey Key="MIMEAssociations">
+                        <RegistryValue Name="text/markdown" Type="string" Value="OnlyMdReader.Markdown" />
+                    </RegistryKey>
+                </RegistryKey>
+
+                <RegistryKey Root="HKLM" Key="Software\Classes\OnlyMdReader.Markdown">
+                    <RegistryValue Type="string" Value="MD 极简阅读 Markdown 文档" />
+                    <RegistryValue
+                        Name="FriendlyTypeName"
+                        Type="string"
+                        Value="MD 极简阅读 Markdown 文档" />
+                    <RegistryValue Name="AppUserModelID" Type="string" Value="com.onlymd.reader" />
+                    <RegistryKey Key="DefaultIcon">
+                        <RegistryValue Type="string" Value="&quot;[!Path]&quot;,0" />
+                    </RegistryKey>
+                    <RegistryKey Key="shell\open\command">
+                        <RegistryValue Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;" />
+                    </RegistryKey>
+                </RegistryKey>
+
+                <RegistryKey Root="HKLM" Key="Software\Classes\Applications\only-md-reader.exe">
+                    <RegistryValue Name="FriendlyAppName" Type="string" Value="MD 极简阅读" />
+                    <RegistryKey Key="DefaultIcon">
+                        <RegistryValue Type="string" Value="&quot;[!Path]&quot;,0" />
+                    </RegistryKey>
+                    <RegistryKey Key="SupportedTypes">
+                        <RegistryValue Name=".md" Type="string" Value="" />
+                        <RegistryValue Name=".markdown" Type="string" Value="" />
+                    </RegistryKey>
+                    <RegistryKey Key="shell\open\command">
+                        <RegistryValue Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;" />
+                    </RegistryKey>
+                </RegistryKey>
+            </Component>
+        </DirectoryRef>
+    </Fragment>
+</Wix>

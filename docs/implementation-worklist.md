@@ -465,22 +465,24 @@
   - 文件关联策略：通过 app bundle document types / Tauri `fileAssociations` 让 `.md` / `.markdown` 可由本应用打开；用户以后可在 Finder `Get Info -> Open with -> Change All` 手动设为默认。
   - 验收标准：在 macOS 实机上生成 `.app` 和 `.dmg`；安装/拖入 Applications 后可启动；Finder 中 Markdown 文件可选择本应用打开；签名、公证、Gatekeeper 状态有明确记录。
 
-- [ ] 12.3 注册 `.md` / `.markdown` 文件关联。完成时间：
+- [x] 12.3 注册 `.md` / `.markdown` 文件关联。完成时间：2026-07-06
   - 验收标准：系统打开方式中能选择本应用。
-  - 进展：2026-07-02 已在 `src-tauri/tauri.conf.json` 的 `bundle.fileAssociations` 注册 `ext: ["md", "markdown"]`、`mimeType: "text/markdown"`、`role: "Viewer"`；`src/app-shell.test.ts` 增加 `desktop bundle declares markdown file associations for default app opening` 静态守门；`pnpm tauri build --no-bundle --ci` 可成功构建 release exe。尚未安装 MSI/NSIS 并在 Windows “打开方式”系统界面实机确认，因此本项不打勾。
+  - 进展：2026-07-02 已在 `src-tauri/tauri.conf.json` 的 `bundle.fileAssociations` 注册 `ext: ["md", "markdown"]`、`mimeType: "text/markdown"`、`role: "Viewer"`；`src/app-shell.test.ts` 增加 `desktop bundle declares markdown file associations for default app opening` 静态守门；`pnpm tauri build --no-bundle --ci` 可成功构建 release exe。当时尚未安装 MSI/NSIS 并在 Windows “打开方式”系统界面实机确认，后续由 2026-07-06 的 Windows MSI 注册补充项完成确认。
   - 追加需求：Windows MSI 安装时无论用户是否选择“设为默认程序”，都必须注册本应用的 Markdown 打开能力，使用户之后仍可在右键“打开方式”或 Windows 默认应用设置中手动选择 `MD 极简阅读` 打开 `.md` / `.markdown`。
   - Windows 注册范围：应注册本应用自己的 ProgID、图标、open command、`RegisteredApplications` / `Capabilities\FileAssociations` 等必要项，让 Windows 默认应用页面能识别本应用；不要依赖阅读器首次启动来补注册。
-  - 验收补充：安装 MSI 后，在 Windows “打开方式”和“按文件类型选择默认值”中能看到本应用；卸载后这些由本应用创建的文件关联候选项被移除。
+  - 验收补充：安装 MSI 后，在 Windows “打开方式”和“按文件类型选择默认值”中能看到本应用；卸载清理按 12.8 单独验收。
+  - 追加进展：2026-07-06 新增 `src-tauri/wix/markdown-default-app.wxs` 并通过 `src-tauri/tauri.conf.json` 的 WiX `fragmentPaths` / `componentRefs` 纳入 MSI，注册 `HKLM\Software\RegisteredApplications`、`Capabilities\FileAssociations`、`Capabilities\MIMEAssociations`、`Software\Classes\OnlyMdReader.Markdown`、`Software\Classes\Applications\only-md-reader.exe\SupportedTypes` 和 open command。MSI 数据库检查确认 `.md`、`.markdown`、`text/markdown`、`OnlyMdReader.Markdown`、`Applications\only-md-reader.exe` 均存在，且未写入 `UserChoice`。用户 2026-07-06 确认安装器实测通过；同日重新构建 `src-tauri\target\release\bundle\msi\MD极简阅读_0.1.1_x64_zh-CN.msi` 并复验 MSI 数据库。
 
 - [ ] 12.4 支持双击 Markdown 文件打开。完成时间：
   - 验收标准：双击 `.md` 文件能启动应用并打开对应文件。
   - 进展：2026-07-02 已验证默认程序/双击最终会走到的启动参数路径：release exe 传入 `.md` 路径时直接进入 reader window，`hasOpenFileTitle = false`，不再创建打开文件窗口；文件关联安装后的真实双击仍未验收，因此本项不打勾。
 
-- [ ] 12.5 提供默认打开程序引导。完成时间：
+- [x] 12.5 提供默认打开程序引导。完成时间：2026-07-06
   - 需求记录：默认程序相关体验必须发生在安装阶段，不在阅读器第一次打开时做引导或弹窗，保持阅读器主流程干净。
   - Windows 安装器体验：MSI 安装完成阶段提供默认勾选项，例如“安装完成后设置 Markdown 默认打开程序”。用户可以取消勾选；取消后仍保留 12.3 的打开方式候选注册，方便以后手动设置。
   - 实现边界：Windows 10/11 不承诺由安装器静默替换已有 `.md` / `.markdown` 默认程序；勾选后应打开 Windows 默认应用设置页或文件类型关联设置页，让用户在系统 UI 中确认。不要通过删除/伪造 `UserChoice`、反推 hash、调用非公开工具等方式强行接管。
   - 验收标准：安装器默认勾选项可见且可取消；勾选时安装完成后进入 Windows 默认应用确认路径；未勾选时不弹阅读器内引导；任一情况下用户之后都能手动把 `.md` / `.markdown` 设为本应用。
+  - 追加进展：2026-07-06 新增自定义 WiX 模板 `src-tauri/wix/main.wxs`，将 Tauri 默认结束页“启动应用”勾选项改为默认勾选的“安装完成后打开 Windows 默认应用设置，设置 MD 极简阅读为 Markdown 默认打开程序”；勾选时 `ExitDialog` 的 Finish 事件执行 `LaunchDefaultAppsSettings`，通过 `explorer.exe "ms-settings:defaultapps?registeredAppMachine=MD%20%E6%9E%81%E7%AE%80%E9%98%85%E8%AF%BB"` 打开 Windows 默认应用设置。MSI 数据库检查确认 `WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1`、上述 checkbox 文案、`LaunchDefaultAppsSettings` 自定义动作和 `ExitDialog -> Finish -> DoAction` 事件均存在。用户 2026-07-06 确认安装器实测通过；同日重新构建 v0.1.1 MSI 并复验安装完成页相关 MSI 数据库记录。
 
 - [ ] 12.6 验证离线资源可用。完成时间：
   - 覆盖：Maple Mono NF CN、KaTeX、Shiki、`Eva Light Bold` / `Eva Dark Bold` 代码主题 JSON。

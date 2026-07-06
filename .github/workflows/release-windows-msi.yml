@@ -3,13 +3,13 @@ name: Release Windows MSI
 on:
   push:
     tags:
-      - "V*"
+      - "v*"
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag, for example V0.1.0"
+        description: "Release tag, for example v0.1.1"
         required: true
-        default: "V0.1.0"
+        default: "v0.1.1"
 
 permissions:
   contents: write
@@ -32,8 +32,8 @@ jobs:
           } else {
             $tag = "${{ github.ref_name }}"
           }
-          if ($tag -notmatch '^V\d+\.\d+\.\d+$') {
-            throw "Release tag must look like V0.1.0; got '$tag'"
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Release tag must look like v0.1.1; got '$tag'"
           }
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 

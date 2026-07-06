@@ -28,6 +28,9 @@ const tauriConfig = JSON.parse(
     windows?: {
       wix?: {
         language?: string;
+        template?: string;
+        fragmentPaths?: string[];
+        componentRefs?: string[];
       };
     };
     fileAssociations?: Array<{
@@ -88,6 +91,17 @@ const tauriBuildRs = readFileSync(
   new URL("../src-tauri/build.rs", import.meta.url),
   "utf8",
 );
+const wixTemplateUrl = new URL("../src-tauri/wix/main.wxs", import.meta.url);
+const wixTemplate = existsSync(wixTemplateUrl)
+  ? readFileSync(wixTemplateUrl, "utf8")
+  : "";
+const wixMarkdownDefaultAppUrl = new URL(
+  "../src-tauri/wix/markdown-default-app.wxs",
+  import.meta.url,
+);
+const wixMarkdownDefaultApp = existsSync(wixMarkdownDefaultAppUrl)
+  ? readFileSync(wixMarkdownDefaultAppUrl, "utf8")
+  : "";
 const defaultCapability = JSON.parse(
   readFileSync(
     new URL("../src-tauri/capabilities/default.json", import.meta.url),
@@ -533,6 +547,42 @@ void test("desktop bundle declares markdown file associations for default app op
   assert.deepEqual(tauriConfig.bundle?.targets, ["msi"]);
   assert.equal(tauriConfig.bundle?.windows?.wix?.language, "zh-CN");
   assert.equal(markdownAssociation?.name, "MD极简阅读 Markdown 文档");
+});
+
+void test("Windows MSI exposes Markdown default-app registration and system settings opt-in", () => {
+  const wixConfig = tauriConfig.bundle?.windows?.wix;
+
+  assert.equal(wixConfig?.template, "wix/main.wxs");
+  assert.deepEqual(wixConfig?.fragmentPaths, ["wix/markdown-default-app.wxs"]);
+  assert.ok(wixConfig?.componentRefs?.includes("MarkdownDefaultAppRegistration"));
+
+  assert.match(
+    wixTemplate,
+    /WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"\s+Value="安装完成后打开 Windows 默认应用设置，设置 MD 极简阅读为 Markdown 默认打开程序"/,
+  );
+  assert.match(wixTemplate, /LaunchDefaultAppsSettings/);
+  assert.match(wixTemplate, /LaunchDefaultAppsSettings"[^>]+Directory="TARGETDIR"/);
+  assert.doesNotMatch(wixTemplate, /Directory="WindowsFolder"/);
+  assert.match(
+    wixTemplate,
+    /ms-settings:defaultapps\?registeredAppMachine=MD%20%E6%9E%81%E7%AE%80%E9%98%85%E8%AF%BB/,
+  );
+  assert.doesNotMatch(wixTemplate, /Value="!\(loc\.LaunchApp\)"/);
+  assert.doesNotMatch(wixTemplate, /UserChoice/);
+
+  assert.match(wixMarkdownDefaultApp, /RegisteredApplications/);
+  assert.match(wixMarkdownDefaultApp, /<\?define Win64 = "yes" \?>/);
+  assert.match(wixMarkdownDefaultApp, /MD极简阅读\\Capabilities/);
+  assert.match(wixMarkdownDefaultApp, /Key="FileAssociations"/);
+  assert.match(wixMarkdownDefaultApp, /Applications\\only-md-reader\.exe/);
+  assert.match(wixMarkdownDefaultApp, /SupportedTypes/);
+  assert.match(wixMarkdownDefaultApp, /Software\\Classes\\OnlyMdReader\.Markdown/);
+  assert.match(wixMarkdownDefaultApp, /shell\\open\\command/);
+  assert.match(wixMarkdownDefaultApp, /&quot;\[!Path\]&quot;\s+&quot;%1&quot;/);
+  assert.match(wixMarkdownDefaultApp, /\.md/);
+  assert.match(wixMarkdownDefaultApp, /\.markdown/);
+  assert.match(wixMarkdownDefaultApp, /text\/markdown/);
+  assert.doesNotMatch(wixMarkdownDefaultApp, /UserChoice/);
 });
 
 void test("reader command hides the source open-file window before the slow open path and restores it on failure", () => {

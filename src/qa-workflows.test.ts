@@ -86,7 +86,8 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
   assert.match(ciWorkflow, /cargo test --manifest-path src-tauri\\Cargo\.toml/);
 
   assert.match(releaseWorkflow, /Release Windows MSI/);
-  assert.match(releaseWorkflow, /tags:\s*\n\s*- "V\*"/);
+  assert.match(releaseWorkflow, /tags:\s*\n\s*- "v\*"/);
+  assert.match(releaseWorkflow, /\^v\\d\+\\\.\\d\+\\\.\\d\+\$/);
   assert.match(releaseWorkflow, /pnpm tauri build --bundles msi/);
   assert.match(releaseWorkflow, /NSIS artifacts were produced/);
   assert.match(releaseWorkflow, /gh release create/);
