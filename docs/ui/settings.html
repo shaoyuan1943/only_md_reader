@@ -14,8 +14,7 @@
         --control-radius: 13px;
         --font:
           "Maple NF CN", system-ui, -apple-system, "Segoe UI", "PingFang SC",
-          "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC",
-          sans-serif;
+          "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
       }
 
       /* Warm Paper Light tokens copied from docs/ui/ui_colors.html. */
@@ -44,12 +43,12 @@
         --segmented-selected-border: #d6c8b7;
         --segmented-selected-text: #221d18;
         --focus-ring: rgba(166, 110, 79, 0.28);
-        --row-shadow: 0 20px 36px rgba(91, 66, 45, 0.17),
-          0 5px 14px rgba(91, 66, 45, 0.1);
-        --panel-shadow: 0 22px 60px rgba(91, 66, 45, 0.16),
-          0 4px 18px rgba(91, 66, 45, 0.1);
-        --pane-shadow: 0 22px 48px rgba(91, 66, 45, 0.18),
-          0 8px 18px rgba(91, 66, 45, 0.12),
+        --row-shadow:
+          0 20px 36px rgba(91, 66, 45, 0.17), 0 5px 14px rgba(91, 66, 45, 0.1);
+        --panel-shadow:
+          0 22px 60px rgba(91, 66, 45, 0.16), 0 4px 18px rgba(91, 66, 45, 0.1);
+        --pane-shadow:
+          0 22px 48px rgba(91, 66, 45, 0.18), 0 8px 18px rgba(91, 66, 45, 0.12),
           inset 0 1px 0 rgba(255, 255, 255, 0.48);
       }
 
@@ -79,12 +78,11 @@
         --segmented-selected-border: #4a3c31;
         --segmented-selected-text: #f1e8db;
         --focus-ring: rgba(194, 138, 99, 0.3);
-        --row-shadow: 0 20px 40px rgba(0, 0, 0, 0.34),
-          0 6px 14px rgba(0, 0, 0, 0.24);
-        --panel-shadow: 0 22px 60px rgba(44, 31, 22, 0.34),
-          0 0 0 1px rgba(255, 255, 255, 0.045);
-        --pane-shadow: 0 24px 56px rgba(0, 0, 0, 0.36),
-          0 8px 20px rgba(0, 0, 0, 0.24),
+        --row-shadow: 0 20px 40px rgba(0, 0, 0, 0.34), 0 6px 14px rgba(0, 0, 0, 0.24);
+        --panel-shadow:
+          0 22px 60px rgba(44, 31, 22, 0.34), 0 0 0 1px rgba(255, 255, 255, 0.045);
+        --pane-shadow:
+          0 24px 56px rgba(0, 0, 0, 0.36), 0 8px 20px rgba(0, 0, 0, 0.24),
           inset 0 1px 0 rgba(255, 255, 255, 0.055);
       }
 
@@ -393,7 +391,6 @@
           grid-template-columns: 1fr;
           gap: 10px;
         }
-
       }
     </style>
   </head>
@@ -401,7 +398,9 @@
     <main class="design-canvas">
       <div class="theme-stack">
         <section class="theme-block">
-          <div class="mode-caption">明亮主题 <span>Warm Paper Light · Settings</span></div>
+          <div class="mode-caption">
+            明亮主题 <span>Warm Paper Light · Settings</span>
+          </div>
           <section
             class="window-frame settings-window warm-paper-light"
             aria-label="设置窗口 · 明亮主题"
@@ -423,8 +422,16 @@
                   <details class="custom-select">
                     <summary class="select-trigger">Maple NF CN</summary>
                     <div class="select-menu" role="listbox" aria-label="阅读字体">
-                      <div class="select-option selected" role="option" aria-selected="true">Maple NF CN</div>
-                      <div class="select-option hover" role="option">Microsoft YaHei UI</div>
+                      <div
+                        class="select-option selected"
+                        role="option"
+                        aria-selected="true"
+                      >
+                        Maple NF CN
+                      </div>
+                      <div class="select-option hover" role="option">
+                        Microsoft YaHei UI
+                      </div>
                       <div class="select-option" role="option">PingFang SC</div>
                       <div class="select-option" role="option">Noto Sans CJK SC</div>
                     </div>
@@ -436,7 +443,13 @@
                   <details class="custom-select drop-up" open>
                     <summary class="select-trigger">Maple NF CN</summary>
                     <div class="select-menu" role="listbox" aria-label="代码字体">
-                      <div class="select-option selected" role="option" aria-selected="true">Maple NF CN</div>
+                      <div
+                        class="select-option selected"
+                        role="option"
+                        aria-selected="true"
+                      >
+                        Maple NF CN
+                      </div>
                       <div class="select-option hover" role="option">Cascadia Code</div>
                       <div class="select-option" role="option">SF Mono</div>
                       <div class="select-option" role="option">Consolas</div>
@@ -445,12 +458,14 @@
                 </div>
               </div>
             </section>
-            <div class="version">MD极简阅读 · v0.1.1</div>
+            <div class="version">MD极简阅读 · v0.1.2</div>
           </section>
         </section>
 
         <section class="theme-block">
-          <div class="mode-caption">暗色主题 <span>Warm Paper Dark · Settings</span></div>
+          <div class="mode-caption">
+            暗色主题 <span>Warm Paper Dark · Settings</span>
+          </div>
           <section
             class="window-frame settings-window warm-paper-dark"
             aria-label="设置窗口 · 暗色主题"
@@ -472,8 +487,16 @@
                   <details class="custom-select">
                     <summary class="select-trigger">Maple NF CN</summary>
                     <div class="select-menu" role="listbox" aria-label="阅读字体">
-                      <div class="select-option selected" role="option" aria-selected="true">Maple NF CN</div>
-                      <div class="select-option hover" role="option">Microsoft YaHei UI</div>
+                      <div
+                        class="select-option selected"
+                        role="option"
+                        aria-selected="true"
+                      >
+                        Maple NF CN
+                      </div>
+                      <div class="select-option hover" role="option">
+                        Microsoft YaHei UI
+                      </div>
                       <div class="select-option" role="option">PingFang SC</div>
                       <div class="select-option" role="option">Noto Sans CJK SC</div>
                     </div>
@@ -485,7 +508,13 @@
                   <details class="custom-select drop-up" open>
                     <summary class="select-trigger">Maple NF CN</summary>
                     <div class="select-menu" role="listbox" aria-label="代码字体">
-                      <div class="select-option selected" role="option" aria-selected="true">Maple NF CN</div>
+                      <div
+                        class="select-option selected"
+                        role="option"
+                        aria-selected="true"
+                      >
+                        Maple NF CN
+                      </div>
                       <div class="select-option hover" role="option">Cascadia Code</div>
                       <div class="select-option" role="option">SF Mono</div>
                       <div class="select-option" role="option">Consolas</div>
@@ -494,7 +523,7 @@
                 </div>
               </div>
             </section>
-            <div class="version">MD极简阅读 · v0.1.1</div>
+            <div class="version">MD极简阅读 · v0.1.2</div>
           </section>
         </section>
       </div>

@@ -419,7 +419,7 @@ async function highlightFencedCode(
 ): Promise<string> {
   const codeTheme = codeThemeByMode[themeMode];
   const codeBlockPattern =
-    /(^|\n)(`{3,}|~{3,})([^\r\n`]*)\r?\n([\s\S]*?)\r?\n\2[ \t]*(?=\n|$)/g;
+    /(^|\n)(`{3,}|~{3,})([^\r\n`]*)\r?\n([\s\S]*?)\r?\n\2[ \t]*(?=\r?\n|$)/g;
   const replacements: Array<{ from: string; to: string }> = [];
 
   for (const match of content.matchAll(codeBlockPattern)) {

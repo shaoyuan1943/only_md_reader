@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as {
+  version?: string;
+};
 const appIconSvgUrl = new URL("../src-tauri/icons/app-icon.svg", import.meta.url);
 const appIconSvg = existsSync(appIconSvgUrl) ? readFileSync(appIconSvgUrl, "utf8") : "";
 const appIconOuterPathPattern =
@@ -13,6 +18,7 @@ const appIconLetterPathPattern = /M596\.8 482\.3V337\.5c0-13\.3 0\.7-30\.1 2-50\
 const tauriConfig = JSON.parse(
   readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
 ) as {
+  version?: string;
   productName?: string;
   app?: {
     security?: {
@@ -1341,6 +1347,15 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
   assert.doesNotMatch(
     readFileSync(new URL("./main.tsx", import.meta.url), "utf8"),
     /localStorage/,
+  );
+});
+
+void test("settings window displays the package version", () => {
+  assert.equal(packageJson.version, "0.1.2");
+  assert.equal(tauriConfig.version, packageJson.version);
+  assert.match(
+    settingsWindowTsx,
+    new RegExp(`settings-version">MD极简阅读 · v${packageJson.version}<`),
   );
 });
 

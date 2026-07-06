@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag, for example v0.1.1"
+        description: "Release tag, for example v0.1.2"
         required: true
-        default: "v0.1.1"
+        default: "v0.1.2"
 
 permissions:
   contents: write
@@ -33,7 +33,7 @@ jobs:
             $tag = "${{ github.ref_name }}"
           }
           if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
-            throw "Release tag must look like v0.1.1; got '$tag'"
+            throw "Release tag must look like v0.1.2; got '$tag'"
           }
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 

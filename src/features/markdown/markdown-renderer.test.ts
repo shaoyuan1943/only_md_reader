@@ -306,6 +306,20 @@ void test("text and unlabeled fenced code blocks render as body-colored plain te
   assert.doesNotMatch(unlabeledRendered.html, /<span[^>]*style=/);
 });
 
+void test("enhances CRLF unlabeled fenced code blocks with the reader code wrapper", async () => {
+  const rendered = await renderMarkdownDocument({
+    content: ["# CRLF Code", "", "```", "", "alpha # comment", "```", ""].join("\r\n"),
+    filePath: resolve(fixturesDir, "basic-syntax.md"),
+    themeMode: "light",
+  });
+
+  assert.equal(rendered.error, null);
+  assert.match(rendered.html, /markdown-code-scroller/);
+  assert.match(rendered.html, /class="markdown-code-block"/);
+  assert.match(rendered.html, /data-language="text"/);
+  assert.match(rendered.html, /alpha # comment/);
+});
+
 void test("render errors produce a readable fallback document", () => {
   const rendered = createMarkdownRenderError(new Error("boom"), "# Title");
 
