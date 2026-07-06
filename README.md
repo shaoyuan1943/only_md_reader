@@ -2,8 +2,6 @@
 
 一个面向 Windows 和 macOS 的 Markdown 阅读器。目标很窄：打开本地 Markdown 文件，进入一个干净、稳定、适合长时间阅读的独立窗口。
 
-它不是 Markdown 编辑器，不做文件管理器，不做标签页，也不在第一版里处理批注写回。第一版优先把阅读体验、离线资源、系统集成和打包发布做扎实。
-
 ## 截图
 
 ![明亮主题阅读窗口](docs/assets/readme/reader-light.png)
@@ -101,7 +99,3 @@ pnpm tauri build --bundles msi
 - `docs/assets/readme/`：README 使用的项目截图。
 - `fixtures/`：Markdown 渲染和 QA 样例。
 - `tools/`：仓库内固定 QA 脚本。
-
-## 当前边界
-
-第一版不包含完整 Markdown 编辑器、文件树、标签页、云同步、PDF 导出、账号系统、插件系统和实时协作。CriticMarkup 批注会在阅读器稳定后再实现。
