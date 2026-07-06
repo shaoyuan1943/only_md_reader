@@ -1,0 +1,113 @@
+name: Release Windows MSI
+
+on:
+  push:
+    tags:
+      - "V*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag, for example V0.1.0"
+        required: true
+        default: "V0.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-msi:
+    name: Build and publish MSI
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: release
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag_name }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+          if ($tag -notmatch '^V\d+\.\d+\.\d+$') {
+            throw "Release tag must look like V0.1.0; got '$tag'"
+          }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run release checks
+        run: |
+          pnpm format:check
+          pnpm test
+          pnpm lint
+          cargo test --manifest-path src-tauri\Cargo.toml
+
+      - name: Build Windows MSI
+        run: pnpm tauri build --bundles msi
+
+      - name: Locate MSI
+        id: msi
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -LiteralPath src-tauri\target\release\bundle\msi -Filter *.msi | Select-Object -First 1
+          if (-not $msi) {
+            throw "No MSI package was produced."
+          }
+          if (Test-Path -LiteralPath src-tauri\target\release\bundle\nsis) {
+            $nsis = Get-ChildItem -LiteralPath src-tauri\target\release\bundle\nsis -File -ErrorAction SilentlyContinue
+            if ($nsis) {
+              throw "NSIS artifacts were produced, but this release must publish MSI only."
+            }
+          }
+          "path=$($msi.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "name=$($msi.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.msi.outputs.name }}
+          path: ${{ steps.msi.outputs.path }}
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          MSI_PATH: ${{ steps.msi.outputs.path }}
+        run: |
+          $notes = @"
+          # MD极简阅读 $env:RELEASE_TAG
+
+          Windows MSI installer for MD极简阅读.
+
+          This release publishes MSI only. NSIS installers are intentionally not produced.
+          "@
+          $notesPath = Join-Path $env:RUNNER_TEMP "release-notes.md"
+          Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
+
+          $existing = gh release view $env:RELEASE_TAG --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $env:MSI_PATH --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $env:MSI_PATH --title $env:RELEASE_TAG --notes-file $notesPath
+          }

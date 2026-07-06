@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>打开文件窗口 - Markdown Reader UI</title>
+    <style>
+      :root {
+        /* Structural tokens shared by both themes. */
+        --canvas-width: 1920px;
+        --canvas-height: 1080px;
+        --window-width: 1160px;
+        --window-height: 760px;
+        --window-radius: 22px;
+        --control-radius: 14px;
+        --font:
+          system-ui, -apple-system, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC",
+          sans-serif;
+      }
+
+      /* Warm Paper Light tokens, copied from ui_colors.html for implementation reference. */
+      .warm-paper-light {
+        color-scheme: light;
+        --app-bg: #ede4d7;
+        --surface-bg: #f8f2ea;
+        --code-bg: #eee5d8;
+        --text-primary: #2b2621;
+        --text-secondary: #6f655b;
+        --text-muted: #94877a;
+        --accent: #8a5a3c;
+        --accent-hover: #734a31;
+        --selection-bg: #e7d3bd;
+        --selection-text: #2b2621;
+        --border-soft: #e1d5c6;
+        --divider: #d8ccbd;
+        --heading-primary: #241f1a;
+        --heading-secondary: #3a332c;
+        --heading-tertiary: #51483f;
+        --link: #8a5a3c;
+        --link-hover: #6e432c;
+        --link-visited: #7b5d72;
+        --strong: #221d18;
+        --emphasis: #5b5148;
+        --mark-bg: #f0dfc7;
+        --mark-text: #2b2621;
+        --inline-code-bg: #efe5d8;
+        --inline-code-text: #7b4e35;
+        --blockquote-bg: #f3e7d8;
+        --blockquote-border: #c49772;
+        --blockquote-text: #4c4137;
+        --list-bullet: #a06e4d;
+        --hr: #d4c7b8;
+        --table-header-bg: #f1e7da;
+        --table-header-text: #302a24;
+        --table-border: #d7cbbc;
+        --table-row-alt: #fbf7f1;
+        --code-border: #ddd0c1;
+        --code-text: #2f2a25;
+        --code-keyword: #8a5a3c;
+        --code-string: #7b7a46;
+        --code-number: #8c4a4a;
+        --code-function: #5b6a79;
+        --code-comment: #988a7c;
+        --footnote: #7b7066;
+        --tag-bg: #f0e6d9;
+        --tag-text: #6e5743;
+        --panel-shadow: 0 22px 60px rgba(91, 66, 45, 0.16),
+          0 4px 18px rgba(91, 66, 45, 0.1);
+      }
+
+      /* Warm Paper Dark tokens, copied from ui_colors.html for implementation reference. */
+      .warm-paper-dark {
+        color-scheme: dark;
+        --app-bg: #151210;
+        --surface-bg: #211c17;
+        --code-bg: #2b241e;
+        --text-primary: #e8dfd2;
+        --text-secondary: #b1a597;
+        --text-muted: #877b6e;
+        --accent: #c28a63;
+        --accent-hover: #d79c73;
+        --selection-bg: #433126;
+        --selection-text: #f0e7db;
+        --border-soft: #3a3128;
+        --divider: #463b31;
+        --heading-primary: #f1e8db;
+        --heading-secondary: #e3d6c6;
+        --heading-tertiary: #c9b8a6;
+        --link: #d29a72;
+        --link-hover: #e3ae86;
+        --link-visited: #b89cb8;
+        --strong: #fff6ea;
+        --emphasis: #d6c7b7;
+        --mark-bg: #5a4433;
+        --mark-text: #f4ebdd;
+        --inline-code-bg: #302821;
+        --inline-code-text: #e0b28d;
+        --blockquote-bg: #2a241e;
+        --blockquote-border: #c28a63;
+        --blockquote-text: #d8ccbe;
+        --list-bullet: #d0a17f;
+        --hr: #3b3128;
+        --table-header-bg: #2a241e;
+        --table-header-text: #eee4d8;
+        --table-border: #40352b;
+        --table-row-alt: #251f19;
+        --code-border: #3d332a;
+        --code-text: #e8ded1;
+        --code-keyword: #d29a72;
+        --code-string: #b9c07a;
+        --code-number: #d18c8c;
+        --code-function: #9db4c8;
+        --code-comment: #8e8175;
+        --footnote: #a79a8d;
+        --tag-bg: #302821;
+        --tag-text: #cfb197;
+        --panel-shadow: 0 22px 60px rgba(44, 31, 22, 0.34),
+          0 0 0 1px rgba(255, 255, 255, 0.045);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        /* Neutral page backdrop only — NOT part of the design.
+           The framed window in the middle is the actual software UI. */
+        background: #ffffff;
+        color: #2b2621;
+        font-family: var(--font);
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .design-canvas {
+        width: var(--canvas-width);
+        min-height: var(--canvas-height);
+        display: grid;
+        place-items: center;
+        padding: 72px;
+      }
+
+      .theme-stack {
+        display: grid;
+        gap: 56px;
+        justify-items: center;
+      }
+
+      .theme-block {
+        display: grid;
+        gap: 16px;
+        justify-items: center;
+      }
+
+      .mode-caption {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        color: #4c4137;
+        font-size: 15px;
+        font-weight: 760;
+        letter-spacing: 0.01em;
+      }
+
+      .mode-caption span {
+        color: #8a7c6b;
+        font-size: 12px;
+        font-weight: 620;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .window-frame {
+        position: relative;
+        width: var(--window-width);
+        height: var(--window-height);
+        overflow: hidden;
+        border: 1px solid var(--border-soft);
+        border-radius: var(--window-radius);
+        background:
+          radial-gradient(
+            circle at 50% -12%,
+            color-mix(in srgb, var(--selection-bg) 54%, transparent) 0,
+            transparent 340px
+          ),
+          var(--app-bg);
+        box-shadow: var(--panel-shadow);
+      }
+
+      .window-frame::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+      }
+
+      .open-layout {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        padding: 32px 36px 30px;
+      }
+
+      .window-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+      }
+
+      .traffic-lights {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .traffic-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: var(--divider);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 22%, transparent);
+      }
+
+      .window-title {
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .theme-badge {
+        border: 1px solid var(--border-soft);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--code-bg) 72%, transparent);
+        color: var(--tag-text);
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 730;
+      }
+
+      .open-center {
+        width: min(520px, 100%);
+        align-self: center;
+        justify-self: center;
+        display: grid;
+        gap: 22px;
+        text-align: center;
+      }
+
+      .app-mark {
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+      }
+
+      .app-icon {
+        display: grid;
+        place-items: center;
+        color: var(--accent);
+      }
+
+      .app-icon svg {
+        width: 128px;
+        height: 128px;
+      }
+
+      .app-title {
+        margin: 0;
+        color: var(--heading-primary);
+        font-size: 28px;
+        line-height: 1.2;
+        font-weight: 820;
+        letter-spacing: 0;
+      }
+
+      .app-subtitle {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      .primary-open-button {
+        width: 100%;
+        min-height: 62px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 1px solid color-mix(in srgb, var(--accent) 72%, var(--border-soft));
+        border-radius: var(--control-radius);
+        background: var(--accent);
+        color: var(--surface-bg);
+        font-size: 20px;
+        font-weight: 780;
+        box-shadow:
+          0 18px 38px color-mix(in srgb, var(--accent) 22%, transparent),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+
+      .primary-open-button:hover {
+        background: var(--accent-hover);
+      }
+
+      .primary-open-button svg {
+        width: 21px;
+        height: 21px;
+      }
+
+      .drop-hint {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed var(--border-soft);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--code-bg) 42%, transparent);
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .recent-block {
+        display: grid;
+        gap: 10px;
+        text-align: left;
+      }
+
+      .section-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 760;
+      }
+
+      .section-label span {
+        color: var(--footnote);
+        font-size: 12px;
+        font-weight: 620;
+      }
+
+      .recent-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .recent-item {
+        width: 100%;
+        display: grid;
+        gap: 4px;
+        border: 1px solid var(--border-soft);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--surface-bg) 86%, var(--code-bg));
+        color: var(--text-primary);
+        padding: 12px 14px;
+        text-align: left;
+      }
+
+      .recent-item:hover {
+        border-color: color-mix(in srgb, var(--accent) 54%, var(--border-soft));
+        background: color-mix(in srgb, var(--selection-bg) 42%, var(--surface-bg));
+      }
+
+      .recent-item strong {
+        display: block;
+        min-width: 0;
+        color: var(--heading-secondary);
+        font-size: 15px;
+        font-weight: 740;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .recent-item span {
+        display: block;
+        min-width: 0;
+        color: var(--text-muted);
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .open-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        color: var(--footnote);
+        font-size: 12px;
+      }
+
+      .format-list {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .format-pill {
+        border: 1px solid var(--border-soft);
+        border-radius: 999px;
+        background: var(--tag-bg);
+        color: var(--tag-text);
+        padding: 4px 8px;
+        font-weight: 720;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="design-canvas">
+      <div class="theme-stack">
+        <section class="theme-block">
+          <div class="mode-caption">明亮主题 <span>Warm Paper Light</span></div>
+          <section
+            class="window-frame open-window warm-paper-light"
+            aria-label="打开文件窗口 · 明亮主题"
+          >
+            <div class="open-layout">
+              <header class="window-bar" aria-label="窗口标题栏">
+                <div class="window-title">MD 极简阅读</div>
+              </header>
+
+              <div class="open-center">
+                <div class="app-mark">
+                  <div class="app-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M6.5 3.75h7.25L18.5 8.5v11.75H6.5V3.75Z"
+                        stroke="currentColor"
+                        stroke-width="0.49"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M13.75 3.75V8.5h4.75M8.9 12.2h6.2M8.9 15.2h6.2M8.9 18.2h4.1"
+                        stroke="currentColor"
+                        stroke-width="0.49"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                <button class="primary-open-button" type="button">
+                  打开 Markdown 文件
+                </button>
+
+                <section class="recent-block" aria-label="最近使用">
+                  <div class="section-label">
+                    最近使用
+                  </div>
+                  <div class="recent-list">
+                    <button class="recent-item" type="button">
+                      <strong>产品需求说明.md</strong>
+                      <span>E:\Documents\notes\产品需求说明.md</span>
+                    </button>
+                    <button class="recent-item" type="button">
+                      <strong>数学公式示例.md</strong>
+                      <span>E:\Documents\markdown\数学公式示例.md</span>
+                    </button>
+                    <button class="recent-item" type="button">
+                      <strong>代码块主题.md</strong>
+                      <span>E:\only_md_reader\docs\代码块主题.md</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="theme-block">
+          <div class="mode-caption">暗色主题 <span>Warm Paper Dark</span></div>
+          <section
+            class="window-frame open-window warm-paper-dark"
+            aria-label="打开文件窗口 · 暗色主题"
+          >
+            <div class="open-layout">
+              <header class="window-bar" aria-label="窗口标题栏">
+                <div class="window-title">MD 极简阅读</div>
+              </header>
+
+              <div class="open-center">
+                <div class="app-mark">
+                  <div class="app-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M6.5 3.75h7.25L18.5 8.5v11.75H6.5V3.75Z"
+                        stroke="currentColor"
+                        stroke-width="0.49"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M13.75 3.75V8.5h4.75M8.9 12.2h6.2M8.9 15.2h6.2M8.9 18.2h4.1"
+                        stroke="currentColor"
+                        stroke-width="0.49"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                <button class="primary-open-button" type="button">
+                  打开 Markdown 文件
+                </button>
+
+                <section class="recent-block" aria-label="最近使用">
+                  <div class="section-label">
+                    最近使用
+                  </div>
+                  <div class="recent-list">
+                    <button class="recent-item" type="button">
+                      <strong>产品需求说明.md</strong>
+                      <span>E:\Documents\notes\产品需求说明.md</span>
+                    </button>
+                    <button class="recent-item" type="button">
+                      <strong>数学公式示例.md</strong>
+                      <span>E:\Documents\markdown\数学公式示例.md</span>
+                    </button>
+                    <button class="recent-item" type="button">
+                      <strong>代码块主题.md</strong>
+                      <span>E:\only_md_reader\docs\代码块主题.md</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

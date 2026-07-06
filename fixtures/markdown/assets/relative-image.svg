@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="240" viewBox="0 0 480 240" role="img" aria-labelledby="title desc">
+  <title id="title">Relative image fixture</title>
+  <desc id="desc">A simple local SVG used to verify relative Markdown image loading.</desc>
+  <rect width="480" height="240" fill="#f4efe7"/>
+  <rect x="32" y="32" width="416" height="176" rx="12" fill="#ffffff" stroke="#cbbca8" stroke-width="2"/>
+  <circle cx="104" cy="104" r="36" fill="#b96f4a"/>
+  <path d="M168 152 L232 96 L288 140 L336 116 L408 176 H168 Z" fill="#7c8f6a"/>
+  <text x="104" y="190" font-family="Arial, sans-serif" font-size="22" fill="#332a24">local relative image</text>
+</svg>

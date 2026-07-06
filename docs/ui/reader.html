@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>阅读视图窗口 - Markdown Reader UI</title>
+    <style>
+      :root {
+        --canvas-width: 1920px;
+        --window-width: 1320px;
+        --window-height: 820px;
+        --window-radius: 22px;
+        --panel-radius: 22px;
+        --content-max-width: 720px;
+        --font:
+          system-ui, -apple-system, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC",
+          sans-serif;
+        --code-font:
+          ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+      }
+
+      /* Warm Paper Light tokens copied from docs/ui/ui_colors.html. */
+      .warm-paper-light {
+        color-scheme: light;
+        --app-bg: #ede4d7;
+        --surface-bg: #f8f2ea;
+        --code-bg: #eee5d8;
+        --text-primary: #2b2621;
+        --text-secondary: #6f655b;
+        --text-muted: #94877a;
+        --accent: #8a5a3c;
+        --accent-hover: #734a31;
+        --border-soft: #e1d5c6;
+        --selection-bg: #e7d3bd;
+        --heading-1: #241f1a;
+        --heading-2: #3a332c;
+        --link: #8a5a3c;
+        --mark-bg: #f0dfc7;
+        --blockquote-bg: #f3e7d8;
+        --blockquote-border: #c49772;
+        --table-header-bg: #f1e7da;
+        --table-border: #d7cbbc;
+        --control-bg: #fcf7f1;
+        --control-hover-bg: #f4eadf;
+        --control-border: #d8c8b8;
+        --tag-bg: #f0e6d9;
+        --tag-text: #6e5743;
+        --panel-shadow: 0 22px 60px rgba(91, 66, 45, 0.16),
+          0 4px 18px rgba(91, 66, 45, 0.1);
+        --outline-card-shadow: 0 20px 42px rgba(91, 66, 45, 0.14),
+          0 7px 18px rgba(91, 66, 45, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        --reader-card-shadow: 0 28px 64px rgba(91, 66, 45, 0.2),
+          0 10px 24px rgba(91, 66, 45, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.54);
+        --sheet-shadow: 0 18px 42px rgba(91, 66, 45, 0.12),
+          0 1px 0 rgba(255, 255, 255, 0.55) inset;
+      }
+
+      /* Warm Paper Dark tokens copied from docs/ui/ui_colors.html. */
+      .warm-paper-dark {
+        color-scheme: dark;
+        --app-bg: #151210;
+        --surface-bg: #211c17;
+        --code-bg: #2b241e;
+        --text-primary: #e8dfd2;
+        --text-secondary: #b1a597;
+        --text-muted: #877b6e;
+        --accent: #c28a63;
+        --accent-hover: #d19a72;
+        --border-soft: #3a3128;
+        --selection-bg: #433126;
+        --heading-1: #f1e8db;
+        --heading-2: #e3d6c6;
+        --link: #d29a72;
+        --mark-bg: #5a4433;
+        --blockquote-bg: #2a241e;
+        --blockquote-border: #c28a63;
+        --table-header-bg: #2a241e;
+        --table-border: #40352b;
+        --control-bg: #2a241e;
+        --control-hover-bg: #332b24;
+        --control-border: #45392f;
+        --tag-bg: #302821;
+        --tag-text: #cfb197;
+        --panel-shadow: 0 22px 60px rgba(44, 31, 22, 0.34),
+          0 0 0 1px rgba(255, 255, 255, 0.045);
+        --outline-card-shadow: 0 22px 48px rgba(0, 0, 0, 0.34),
+          0 8px 18px rgba(0, 0, 0, 0.24),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        --reader-card-shadow: 0 30px 68px rgba(0, 0, 0, 0.42),
+          0 12px 26px rgba(0, 0, 0, 0.28),
+          inset 0 1px 0 rgba(255, 255, 255, 0.055);
+        --sheet-shadow: 0 20px 48px rgba(0, 0, 0, 0.26),
+          0 1px 0 rgba(255, 255, 255, 0.055) inset;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        background: #ffffff;
+        color: #2b2621;
+        font-family: var(--font);
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .design-canvas {
+        width: 100%;
+        max-width: var(--canvas-width);
+        min-height: 100vh;
+        display: grid;
+        justify-items: center;
+        padding: 64px 72px 88px;
+      }
+
+      .theme-stack {
+        display: grid;
+        gap: 56px;
+        justify-items: center;
+      }
+
+      .theme-block {
+        display: grid;
+        gap: 16px;
+        justify-items: center;
+      }
+
+      .mode-caption {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        color: #4c4137;
+        font-size: 15px;
+        font-weight: 760;
+        letter-spacing: 0.01em;
+      }
+
+      .mode-caption span {
+        color: #8a7c6b;
+        font-size: 12px;
+        font-weight: 620;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .window-frame {
+        position: relative;
+        width: min(100%, var(--window-width));
+        height: var(--window-height);
+        overflow: hidden;
+        border-radius: var(--window-radius);
+        background: var(--app-bg);
+        color: var(--text-primary);
+        box-shadow:
+          var(--panel-shadow),
+          inset 0 1px 0 color-mix(in srgb, var(--surface-bg) 34%, transparent);
+      }
+
+      .frame-file-title {
+        position: absolute;
+        top: 18px;
+        left: 24px;
+        right: 24px;
+        z-index: 2;
+        color: var(--text-secondary);
+        font-size: 15px;
+        font-weight: 740;
+        line-height: 1;
+        text-align: center;
+        letter-spacing: 0.02em;
+        pointer-events: none;
+      }
+
+      .reader-layout {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 282px minmax(0, 1fr);
+        gap: 30px;
+        padding: 62px 34px 34px;
+      }
+
+      .outline-panel,
+      .reading-panel {
+        min-height: 0;
+        border-radius: var(--panel-radius);
+        background: var(--surface-bg);
+      }
+
+      .outline-panel {
+        position: relative;
+        padding: 24px 17px 20px;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow: var(--outline-card-shadow);
+      }
+
+      .outline-panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2;
+        height: 38px;
+        border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+        background: linear-gradient(
+          to bottom,
+          var(--surface-bg) 0,
+          var(--surface-bg) 20px,
+          color-mix(in srgb, var(--surface-bg) 88%, transparent) 30px,
+          transparent 100%
+        );
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 140ms ease;
+      }
+
+      .outline-panel.is-scrolled-from-top::before {
+        opacity: 1;
+      }
+
+      .outline-tree {
+        height: 100%;
+        display: grid;
+        align-content: start;
+        gap: 4px;
+        overflow: auto;
+        padding: 0 14px 8px 2px;
+      }
+
+      .outline-tree,
+      .reading-scroll {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      .outline-tree::-webkit-scrollbar,
+      .reading-scroll::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      .outline-node {
+        min-height: 31px;
+        display: flex;
+        align-items: center;
+        border-radius: 10px;
+        padding: 6px 10px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        line-height: 1.35;
+        white-space: nowrap;
+      }
+
+      .outline-node.depth-2 {
+        margin-left: 14px;
+      }
+
+      .outline-node.depth-3 {
+        margin-left: 28px;
+        color: var(--text-muted);
+      }
+
+      .outline-node.is-current {
+        background: var(--selection-bg);
+        color: var(--text-primary);
+        font-weight: 760;
+        box-shadow: inset 3px 0 0 var(--accent);
+      }
+
+      .reading-panel {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow: var(--reader-card-shadow);
+      }
+
+      .reading-panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2;
+        height: 46px;
+        border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+        background: linear-gradient(
+          to bottom,
+          var(--surface-bg) 0,
+          var(--surface-bg) 24px,
+          color-mix(in srgb, var(--surface-bg) 88%, transparent) 36px,
+          transparent 100%
+        );
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 140ms ease;
+      }
+
+      .reading-panel.is-scrolled-from-top::before {
+        opacity: 1;
+      }
+
+      .scrollbar-hotzone {
+        position: absolute;
+        top: 62px;
+        right: 0;
+        bottom: 92px;
+        z-index: 3;
+        width: 34px;
+        opacity: 0;
+        transition: opacity 0.18s ease;
+      }
+
+      .custom-scrollbar {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+        bottom: 10px;
+        width: 6px;
+        border-radius: 999px;
+        pointer-events: none;
+      }
+
+      .outline-panel .scrollbar-hotzone {
+        top: 16px;
+        bottom: 16px;
+        width: 28px;
+      }
+
+      .outline-panel .custom-scrollbar {
+        top: 8px;
+        right: 10px;
+        bottom: 8px;
+      }
+
+      .custom-scrollbar-thumb {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: var(--scroll-thumb-height, 48px);
+        min-height: 40px;
+        border-radius: inherit;
+        background: color-mix(in srgb, var(--app-bg) 58%, var(--text-muted) 42%);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-bg) 68%, transparent);
+        cursor: default;
+        pointer-events: auto;
+        transform: translateY(var(--scroll-thumb-top, 0px));
+        transition:
+          background 0.16s ease,
+          box-shadow 0.16s ease;
+      }
+
+      .reading-panel.is-scrollbar-visible .scrollbar-hotzone,
+      .reading-panel.is-dragging-scrollbar .scrollbar-hotzone,
+      .outline-panel.is-scrollbar-visible .scrollbar-hotzone,
+      .outline-panel.is-dragging-scrollbar .scrollbar-hotzone {
+        opacity: 1;
+      }
+
+      .reading-panel:not(.has-scrollbar) .scrollbar-hotzone,
+      .outline-panel:not(.has-scrollbar) .scrollbar-hotzone {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .custom-scrollbar-thumb:hover,
+      .reading-panel.is-dragging-scrollbar .custom-scrollbar-thumb,
+      .outline-panel.is-dragging-scrollbar .custom-scrollbar-thumb {
+        background: color-mix(in srgb, var(--app-bg) 46%, var(--text-secondary) 54%);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-bg) 50%, transparent);
+      }
+
+      .reading-panel.is-dragging-scrollbar .custom-scrollbar-thumb,
+      .outline-panel.is-dragging-scrollbar .custom-scrollbar-thumb {
+        cursor: default;
+      }
+
+      .reading-scroll {
+        height: 100%;
+        overflow: auto;
+        padding: 56px 96px 80px;
+      }
+
+      .document-sheet {
+        width: min(var(--content-max-width), 100%);
+        margin: 0 auto;
+        padding: 0;
+      }
+
+      .document-kicker {
+        margin: 0 0 10px;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 760;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .document-sheet h1 {
+        margin: 0 0 18px;
+        color: var(--heading-1);
+        font-size: 34px;
+        font-weight: 820;
+        line-height: 1.22;
+        letter-spacing: 0;
+      }
+
+      .document-sheet h2 {
+        margin: 36px 0 12px;
+        color: var(--heading-2);
+        font-size: 22px;
+        font-weight: 760;
+        line-height: 1.35;
+        letter-spacing: 0;
+      }
+
+      .document-sheet p {
+        margin: 0 0 16px;
+        color: var(--text-primary);
+        font-size: 15.5px;
+        line-height: 1.86;
+      }
+
+      .document-sheet a {
+        color: var(--link);
+        text-decoration: none;
+        box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--link) 34%, transparent);
+      }
+
+      .document-sheet mark {
+        border-radius: 5px;
+        background: var(--mark-bg);
+        color: var(--text-primary);
+        padding: 0 4px;
+      }
+
+      .document-sheet blockquote {
+        margin: 20px 0;
+        border-radius: 0 14px 14px 0;
+        background: var(--blockquote-bg);
+        color: var(--text-primary);
+        padding: 13px 16px;
+        box-shadow: inset 4px 0 0 var(--blockquote-border);
+      }
+
+      .document-sheet blockquote p {
+        margin: 0;
+        color: var(--text-secondary);
+      }
+
+      .math-block {
+        margin: 20px 0;
+        border-radius: 16px;
+        background: var(--code-bg);
+        color: var(--heading-2);
+        padding: 18px 20px;
+        text-align: center;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 78%, transparent);
+        font-size: 18px;
+      }
+
+      .code-block {
+        margin: 20px 0;
+        overflow: auto;
+        border-radius: 16px;
+        background: var(--code-bg);
+        color: var(--text-primary);
+        padding: 17px 18px;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 78%, transparent);
+        font-family: var(--code-font);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .code-keyword {
+        color: var(--accent);
+      }
+
+      .code-string {
+        color: color-mix(in srgb, var(--accent) 62%, var(--text-primary));
+      }
+
+      .table-wrap {
+        margin-top: 18px;
+        overflow: auto;
+        border-radius: 15px;
+        box-shadow: inset 0 0 0 1px var(--table-border);
+      }
+
+      table {
+        width: 100%;
+        min-width: 520px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        padding: 11px 13px;
+        text-align: left;
+        color: var(--text-primary);
+      }
+
+      th {
+        background: var(--table-header-bg);
+        color: var(--heading-2);
+        font-weight: 760;
+      }
+
+      tr + tr td {
+        box-shadow: inset 0 1px 0 var(--table-border);
+      }
+
+      .settings-fab {
+        position: absolute;
+        right: 6px;
+        bottom: 6px;
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: var(--control-bg);
+        color: var(--accent);
+        box-shadow:
+          0 15px 34px color-mix(in srgb, var(--accent) 20%, transparent),
+          inset 0 0 0 1px color-mix(in srgb, var(--control-border) 88%, transparent);
+      }
+
+      .settings-fab:hover {
+        background: var(--control-hover-bg);
+        color: var(--accent-hover);
+      }
+
+      .settings-fab svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      @media (max-width: 1360px) {
+        .design-canvas {
+          padding: 42px 28px 64px;
+        }
+
+        .theme-stack,
+        .theme-block {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .design-canvas {
+          width: 100%;
+          padding: 22px 14px 42px;
+        }
+
+        .theme-stack {
+          width: 100%;
+        }
+
+        .window-frame {
+          width: min(100%, var(--window-width));
+          height: auto;
+          min-height: 560px;
+        }
+
+        .reader-layout {
+          grid-template-columns: 1fr;
+          gap: 18px;
+          padding: 54px 16px 18px;
+        }
+
+        .outline-panel {
+          max-height: 210px;
+        }
+
+        .reading-scroll {
+          padding: 34px 18px 74px;
+        }
+
+        .scrollbar-hotzone {
+          top: 42px;
+          right: 0;
+          bottom: 86px;
+          width: 28px;
+        }
+
+        .custom-scrollbar {
+          right: 10px;
+        }
+
+        .document-sheet {
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="design-canvas">
+      <div class="theme-stack">
+        <section class="theme-block">
+          <div class="mode-caption">明亮主题 <span>Warm Paper Light · Reader</span></div>
+          <section
+            class="window-frame reader-window warm-paper-light"
+            aria-label="阅读视图窗口 · 明亮主题"
+          >
+            <div class="frame-file-title">technical-architecture.md</div>
+            <div class="reader-layout">
+              <aside class="outline-panel" aria-label="大纲视图">
+                <nav class="outline-tree" aria-label="文档大纲">
+                  <div class="outline-node is-current">1. 项目定位</div>
+                  <div class="outline-node depth-2">1.1 纯阅读器</div>
+                  <div class="outline-node depth-2">1.2 多窗口阅读</div>
+                  <div class="outline-node">2. 总体架构</div>
+                  <div class="outline-node depth-2">2.1 Tauri / Rust 层</div>
+                  <div class="outline-node depth-2">2.2 React 前端层</div>
+                  <div class="outline-node">3. Markdown 渲染</div>
+                  <div class="outline-node depth-2">3.1 GFM 与大纲</div>
+                  <div class="outline-node depth-2">3.2 KaTeX 数学公式</div>
+                  <div class="outline-node depth-2">3.3 Shiki 代码高亮</div>
+                  <div class="outline-node">4. 外观与设置</div>
+                  <div class="outline-node depth-2">4.1 明亮 / 暗色 / 系统</div>
+                  <div class="outline-node depth-3">4.1.1 字体与行高</div>
+                  <div class="outline-node">5. 系统集成</div>
+                  <div class="outline-node depth-2">5.1 默认打开程序</div>
+                  <div class="outline-node depth-2">5.2 多窗口实例</div>
+                  <div class="outline-node">6. 打包与发布</div>
+                  <div class="outline-node depth-2">6.1 Windows 安装包</div>
+                  <div class="outline-node depth-2">6.2 macOS 应用包</div>
+                  <div class="outline-node">7. 性能与安全</div>
+                  <div class="outline-node depth-2">7.1 大文件加载</div>
+                  <div class="outline-node depth-2">7.2 HTML 安全策略</div>
+                  <div class="outline-node">8. CriticMarkup 批注</div>
+                  <div class="outline-node depth-2">8.1 写回策略</div>
+                  <div class="outline-node depth-2">8.2 冲突处理</div>
+                </nav>
+                <div class="scrollbar-hotzone" aria-hidden="true">
+                  <div class="custom-scrollbar">
+                    <div class="custom-scrollbar-thumb"></div>
+                  </div>
+                </div>
+              </aside>
+
+              <article class="reading-panel" aria-label="Markdown 渲染视图">
+                <div class="reading-scroll">
+                  <div class="document-sheet">
+                    <p class="document-kicker">Pure Reader · Tauri 2 + React</p>
+                    <h1>Markdown 阅读器技术方案</h1>
+                    <p>
+                      本项目是一个面向 Windows 和 macOS 的 Markdown 阅读器。核心目标是
+                      <mark>纯阅读优先</mark>，一个窗口阅读一个 Markdown 文件，左侧显示大纲，
+                      右侧显示居中的渲染内容。
+                    </p>
+                    <p>
+                      阅读区正文受最大宽度约束，窗口变宽时只增加两侧留白，不把段落无限拉长。
+                      设置入口固定在阅读视图右下角留白处，不进入正文内容流。
+                    </p>
+
+                    <h2>渲染能力</h2>
+                    <p>
+                      Markdown 管线使用 unified / remark / rehype，并覆盖 GFM、相对路径图片、
+                      标题锚点、大纲同步和安全 HTML。代码块主题默认采用
+                      <a href="#">VS Code Eva Theme 风格</a>。
+                    </p>
+                    <blockquote>
+                      <p>UI 的第一职责是让长文档可长期阅读，而不是把阅读器做成半吊子的编辑器。</p>
+                    </blockquote>
+
+                    <h2>数学公式</h2>
+                    <p>块级公式需要支持横向滚动，并在失败时保留原始公式文本。</p>
+                    <div class="math-block">∫<sub>a</sub><sup>b</sup> f(x) dx = F(b) - F(a)</div>
+
+                    <h2>代码块</h2>
+                    <pre class="code-block"><code><span class="code-keyword">function</span> openMarkdown(filePath) {
+  <span class="code-keyword">return</span> createReaderWindow({
+    filePath,
+    themeMode: <span class="code-string">"system"</span>
+  });
+}</code></pre>
+
+                    <h2>主题 Token</h2>
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>区域</th>
+                            <th>Token</th>
+                            <th>用途</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>应用背景</td>
+                            <td>app-bg</td>
+                            <td>窗口内部底色</td>
+                          </tr>
+                          <tr>
+                            <td>大纲 / 阅读面板</td>
+                            <td>surface-bg</td>
+                            <td>悬浮阅读表面</td>
+                          </tr>
+                          <tr>
+                            <td>代码 / 公式</td>
+                            <td>code-bg</td>
+                            <td>技术内容背景</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div class="scrollbar-hotzone" aria-hidden="true">
+                  <div class="custom-scrollbar">
+                    <div class="custom-scrollbar-thumb"></div>
+                  </div>
+                </div>
+                <button class="settings-fab" type="button" title="设置" aria-label="设置">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Zm7.4-3.5a7.8 7.8 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a8.2 8.2 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a8.2 8.2 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.8 7.8 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a8.2 8.2 0 0 0 2 1.2l.4 2.6h5l.4-2.6a8.2 8.2 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2Z"
+                    />
+                  </svg>
+                </button>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <section class="theme-block">
+          <div class="mode-caption">暗色主题 <span>Warm Paper Dark · Reader</span></div>
+          <section
+            class="window-frame reader-window warm-paper-dark"
+            aria-label="阅读视图窗口 · 暗色主题"
+          >
+            <div class="frame-file-title">technical-architecture.md</div>
+            <div class="reader-layout">
+              <aside class="outline-panel" aria-label="大纲视图">
+                <nav class="outline-tree" aria-label="文档大纲">
+                  <div class="outline-node is-current">1. 项目定位</div>
+                  <div class="outline-node depth-2">1.1 纯阅读器</div>
+                  <div class="outline-node depth-2">1.2 多窗口阅读</div>
+                  <div class="outline-node">2. 总体架构</div>
+                  <div class="outline-node depth-2">2.1 Tauri / Rust 层</div>
+                  <div class="outline-node depth-2">2.2 React 前端层</div>
+                  <div class="outline-node">3. Markdown 渲染</div>
+                  <div class="outline-node depth-2">3.1 GFM 与大纲</div>
+                  <div class="outline-node depth-2">3.2 KaTeX 数学公式</div>
+                  <div class="outline-node depth-2">3.3 Shiki 代码高亮</div>
+                  <div class="outline-node">4. 外观与设置</div>
+                  <div class="outline-node depth-2">4.1 明亮 / 暗色 / 系统</div>
+                  <div class="outline-node depth-3">4.1.1 字体与行高</div>
+                  <div class="outline-node">5. 系统集成</div>
+                  <div class="outline-node depth-2">5.1 默认打开程序</div>
+                  <div class="outline-node depth-2">5.2 多窗口实例</div>
+                  <div class="outline-node">6. 打包与发布</div>
+                  <div class="outline-node depth-2">6.1 Windows 安装包</div>
+                  <div class="outline-node depth-2">6.2 macOS 应用包</div>
+                  <div class="outline-node">7. 性能与安全</div>
+                  <div class="outline-node depth-2">7.1 大文件加载</div>
+                  <div class="outline-node depth-2">7.2 HTML 安全策略</div>
+                  <div class="outline-node">8. CriticMarkup 批注</div>
+                  <div class="outline-node depth-2">8.1 写回策略</div>
+                  <div class="outline-node depth-2">8.2 冲突处理</div>
+                </nav>
+                <div class="scrollbar-hotzone" aria-hidden="true">
+                  <div class="custom-scrollbar">
+                    <div class="custom-scrollbar-thumb"></div>
+                  </div>
+                </div>
+              </aside>
+
+              <article class="reading-panel" aria-label="Markdown 渲染视图">
+                <div class="reading-scroll">
+                  <div class="document-sheet">
+                    <p class="document-kicker">Pure Reader · Tauri 2 + React</p>
+                    <h1>Markdown 阅读器技术方案</h1>
+                    <p>
+                      本项目是一个面向 Windows 和 macOS 的 Markdown 阅读器。核心目标是
+                      <mark>纯阅读优先</mark>，一个窗口阅读一个 Markdown 文件，左侧显示大纲，
+                      右侧显示居中的渲染内容。
+                    </p>
+                    <p>
+                      阅读区正文受最大宽度约束，窗口变宽时只增加两侧留白，不把段落无限拉长。
+                      设置入口固定在阅读视图右下角留白处，不进入正文内容流。
+                    </p>
+
+                    <h2>渲染能力</h2>
+                    <p>
+                      Markdown 管线使用 unified / remark / rehype，并覆盖 GFM、相对路径图片、
+                      标题锚点、大纲同步和安全 HTML。代码块主题默认采用
+                      <a href="#">VS Code Eva Theme 风格</a>。
+                    </p>
+                    <blockquote>
+                      <p>UI 的第一职责是让长文档可长期阅读，而不是把阅读器做成半吊子的编辑器。</p>
+                    </blockquote>
+
+                    <h2>数学公式</h2>
+                    <p>块级公式需要支持横向滚动，并在失败时保留原始公式文本。</p>
+                    <div class="math-block">∫<sub>a</sub><sup>b</sup> f(x) dx = F(b) - F(a)</div>
+
+                    <h2>代码块</h2>
+                    <pre class="code-block"><code><span class="code-keyword">function</span> openMarkdown(filePath) {
+  <span class="code-keyword">return</span> createReaderWindow({
+    filePath,
+    themeMode: <span class="code-string">"system"</span>
+  });
+}</code></pre>
+
+                    <h2>主题 Token</h2>
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>区域</th>
+                            <th>Token</th>
+                            <th>用途</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>应用背景</td>
+                            <td>app-bg</td>
+                            <td>窗口内部底色</td>
+                          </tr>
+                          <tr>
+                            <td>大纲 / 阅读面板</td>
+                            <td>surface-bg</td>
+                            <td>悬浮阅读表面</td>
+                          </tr>
+                          <tr>
+                            <td>代码 / 公式</td>
+                            <td>code-bg</td>
+                            <td>技术内容背景</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div class="scrollbar-hotzone" aria-hidden="true">
+                  <div class="custom-scrollbar">
+                    <div class="custom-scrollbar-thumb"></div>
+                  </div>
+                </div>
+                <button class="settings-fab" type="button" title="设置" aria-label="设置">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Zm7.4-3.5a7.8 7.8 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a8.2 8.2 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a8.2 8.2 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.8 7.8 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a8.2 8.2 0 0 0 2 1.2l.4 2.6h5l.4-2.6a8.2 8.2 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2Z"
+                    />
+                  </svg>
+                </button>
+              </article>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+    <script>
+      const bindCustomScrollbar = (panel, scrollerSelector) => {
+        const scroller = panel.querySelector(scrollerSelector);
+        const hotzone = panel.querySelector(".scrollbar-hotzone");
+        const track = panel.querySelector(".custom-scrollbar");
+        const thumb = panel.querySelector(".custom-scrollbar-thumb");
+        let dragging = false;
+        let pointerInHotzone = false;
+        let dragStartY = 0;
+        let dragStartScrollTop = 0;
+
+        const metrics = () => {
+          const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+          const trackHeight = track.clientHeight;
+          const thumbHeight =
+            maxScroll > 0
+              ? Math.max(40, Math.round((scroller.clientHeight / scroller.scrollHeight) * trackHeight))
+              : trackHeight;
+          const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+
+          return {
+            maxScroll,
+            thumbHeight,
+            maxThumbTop,
+          };
+        };
+
+        const updateScrollbar = () => {
+          const { maxScroll, thumbHeight, maxThumbTop } = metrics();
+          panel.classList.toggle("has-scrollbar", maxScroll > 0);
+          panel.classList.toggle("is-scrolled-from-top", scroller.scrollTop > 1);
+
+          const thumbTop = maxScroll > 0 ? (scroller.scrollTop / maxScroll) * maxThumbTop : 0;
+          thumb.style.setProperty("--scroll-thumb-height", `${thumbHeight}px`);
+          thumb.style.setProperty("--scroll-thumb-top", `${thumbTop}px`);
+        };
+
+        const hideIfIdle = () => {
+          if (!dragging && !pointerInHotzone) {
+            panel.classList.remove("is-scrollbar-visible");
+          }
+        };
+
+        hotzone.addEventListener("pointerenter", () => {
+          pointerInHotzone = true;
+          updateScrollbar();
+          panel.classList.add("is-scrollbar-visible");
+        });
+
+        hotzone.addEventListener("pointerleave", () => {
+          pointerInHotzone = false;
+          hideIfIdle();
+        });
+
+        thumb.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) {
+            return;
+          }
+
+          const { maxScroll } = metrics();
+          if (maxScroll <= 0) {
+            return;
+          }
+
+          event.preventDefault();
+          dragging = true;
+          dragStartY = event.clientY;
+          dragStartScrollTop = scroller.scrollTop;
+          panel.classList.add("is-scrollbar-visible", "is-dragging-scrollbar");
+          thumb.setPointerCapture(event.pointerId);
+        });
+
+        thumb.addEventListener("pointermove", (event) => {
+          if (!dragging) {
+            return;
+          }
+
+          const { maxScroll, maxThumbTop } = metrics();
+          if (maxScroll <= 0 || maxThumbTop <= 0) {
+            return;
+          }
+
+          const deltaY = event.clientY - dragStartY;
+          scroller.scrollTop = dragStartScrollTop + (deltaY / maxThumbTop) * maxScroll;
+        });
+
+        const stopDragging = (event) => {
+          if (!dragging) {
+            return;
+          }
+
+          dragging = false;
+          panel.classList.remove("is-dragging-scrollbar");
+          if (thumb.hasPointerCapture(event.pointerId)) {
+            thumb.releasePointerCapture(event.pointerId);
+          }
+          hideIfIdle();
+        };
+
+        thumb.addEventListener("pointerup", stopDragging);
+        thumb.addEventListener("pointercancel", stopDragging);
+        scroller.addEventListener("scroll", updateScrollbar, { passive: true });
+        window.addEventListener("resize", updateScrollbar);
+        updateScrollbar();
+      };
+
+      document.querySelectorAll(".reading-panel").forEach((panel) => {
+        bindCustomScrollbar(panel, ".reading-scroll");
+      });
+
+      document.querySelectorAll(".outline-panel").forEach((panel) => {
+        bindCustomScrollbar(panel, ".outline-tree");
+      });
+    </script>
+  </body>
+</html>

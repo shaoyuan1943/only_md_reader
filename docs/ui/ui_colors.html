@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warm Paper 阅读器配色：含按钮与下拉框</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#F2EEE8;color:#2B2621;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.6}
+.page{max-width:1640px;margin:0 auto;padding:38px 24px 80px} .page h1{margin:0 0 8px;font-size:34px;letter-spacing:-.04em} .intro{max-width:980px;color:#62574D;margin-bottom:24px}
+.note{background:#FFFDFC;border:1px solid #E8DED2;border-radius:16px;padding:14px 16px;margin-bottom:28px;color:#5D5348}
+.theme{background:var(--app-bg);color:var(--text-primary);border-radius:28px;overflow:hidden;margin-bottom:34px;box-shadow:inset 0 0 0 1px rgba(127,127,127,.10)}
+.light{--app-bg: #EDE4D7;
+--surface-bg: #F8F2EA;
+--code-bg: #EEE5D8;
+--text-primary: #2B2621;
+--text-secondary: #6F655B;
+--text-muted: #94877A;
+--accent: #8A5A3C;
+--border-soft: #E1D5C6;
+--selection-bg: #E7D3BD;
+--heading-1: #241F1A;
+--heading-2: #3A332C;
+--link: #8A5A3C;
+--mark-bg: #F0DFC7;
+--blockquote-bg: #F3E7D8;
+--blockquote-border: #C49772;
+--table-header-bg: #F1E7DA;
+--table-border: #D7CBBC;
+--button-primary-bg: #8A5A3C;
+--button-primary-hover: #734A31;
+--button-primary-text: #FFF8F1;
+--button-secondary-bg: #E7D3BD;
+--button-secondary-hover: #DDC3A7;
+--button-secondary-text: #4E3425;
+--button-ghost-text: #8A5A3C;
+--button-ghost-hover-bg: #F0E4D6;
+--button-danger-bg: #9B5A4A;
+--button-danger-hover: #83493C;
+--button-danger-text: #FFF8F1;
+--control-bg: #FCF7F1;
+--control-hover-bg: #F4EADF;
+--control-text: #2B2621;
+--control-placeholder: #9B8D80;
+--control-border: #D8C8B8;
+--control-focus-border: #A66E4F;
+--dropdown-menu-bg: #FFF8F0;
+--dropdown-option-hover-bg: #F0E4D6;
+--dropdown-option-selected-bg: #E7D3BD;
+--switch-track-off: #D8C8B8;
+--switch-track-on: #8A5A3C;
+--switch-thumb: #FFF8F1;
+--focus-ring: rgba(166,110,79,.28);
+--disabled-bg: #E9DED2;
+--disabled-text: #A89B8E;
+--panel-shadow: 0 22px 60px rgba(91,66,45,.16), 0 4px 18px rgba(91,66,45,.10);}.dark{--app-bg: #151210;
+--surface-bg: #211C17;
+--code-bg: #2B241E;
+--text-primary: #E8DFD2;
+--text-secondary: #B1A597;
+--text-muted: #877B6E;
+--accent: #C28A63;
+--border-soft: #3A3128;
+--selection-bg: #433126;
+--heading-1: #F1E8DB;
+--heading-2: #E3D6C6;
+--link: #D29A72;
+--mark-bg: #5A4433;
+--blockquote-bg: #2A241E;
+--blockquote-border: #C28A63;
+--table-header-bg: #2A241E;
+--table-border: #40352B;
+--button-primary-bg: #C28A63;
+--button-primary-hover: #D19A72;
+--button-primary-text: #24160F;
+--button-secondary-bg: #433126;
+--button-secondary-hover: #543B2D;
+--button-secondary-text: #E8DFD2;
+--button-ghost-text: #D0A17F;
+--button-ghost-hover-bg: #302821;
+--button-danger-bg: #B16A5B;
+--button-danger-hover: #C17A6A;
+--button-danger-text: #21120E;
+--control-bg: #2A241E;
+--control-hover-bg: #332B24;
+--control-text: #E8DFD2;
+--control-placeholder: #8E8175;
+--control-border: #45392F;
+--control-focus-border: #C28A63;
+--dropdown-menu-bg: #2A241E;
+--dropdown-option-hover-bg: #352C24;
+--dropdown-option-selected-bg: #433126;
+--switch-track-off: #45392F;
+--switch-track-on: #C28A63;
+--switch-thumb: #24160F;
+--focus-ring: rgba(194,138,99,.30);
+--disabled-bg: #2C251F;
+--disabled-text: #6F6257;
+--panel-shadow: 0 22px 60px rgba(44,31,22,.34), 0 0 0 1px rgba(255,255,255,.045);}
+.top{display:flex;justify-content:space-between;gap:12px;padding:16px 18px;color:var(--text-primary)}.top span{color:var(--text-secondary);font-size:12px}
+.layout{display:grid;grid-template-columns:260px 1fr;gap:24px;padding:24px}.panel{background:var(--surface-bg);border-radius:22px;box-shadow:var(--panel-shadow)}.outline{padding:18px 16px}.outline h3{margin:0 0 14px;color:var(--heading-1)}.search{background:var(--code-bg);color:var(--text-muted);border-radius:13px;padding:10px 12px;box-shadow:inset 0 0 0 1px var(--border-soft);font-size:13px}.cap{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px}.toc{color:var(--text-secondary);border-radius:13px;padding:9px 10px;font-size:14px}.toc.active{background:var(--selection-bg);color:var(--text-primary);box-shadow:inset 3px 0 0 var(--accent)}
+.reader{padding:36px 42px}.reader h1{color:var(--heading-1);font-size:33px;letter-spacing:-.05em;margin:0 0 8px}.reader h2{color:var(--heading-2);font-size:23px;margin:26px 0 10px}.meta{color:var(--text-muted);font-size:13px;margin-bottom:18px}.reader p{color:var(--text-primary);font-size:15.5px}blockquote{margin:18px 0;padding:12px 16px;border-left:4px solid var(--blockquote-border);border-radius:0 14px 14px 0;background:var(--blockquote-bg);color:var(--text-primary)}
+.settings{margin:22px 0;padding:18px;border-radius:18px;background:var(--code-bg);box-shadow:inset 0 0 0 1px var(--border-soft)}.settings-head{display:flex;justify-content:space-between;gap:16px;margin-bottom:16px}.settings h2{margin:0 0 2px;font-size:16px}.settings p{margin:0;color:var(--text-muted);font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}label{font-size:12px;font-weight:760;color:var(--text-secondary)}input,select{display:block;width:100%;height:38px;margin-top:6px;border:0;outline:0;border-radius:12px;background:var(--control-bg);color:var(--control-text);box-shadow:inset 0 0 0 1px var(--control-border);padding:0 12px;font-size:13px}select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-muted) 50%),linear-gradient(135deg,var(--text-muted) 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}input::placeholder{color:var(--control-placeholder)}input:focus,select:focus{box-shadow:inset 0 0 0 1px var(--control-focus-border),0 0 0 3px var(--focus-ring)}
+.dropdown{border-radius:14px;background:var(--dropdown-menu-bg);box-shadow:0 12px 28px rgba(0,0,0,.12),inset 0 0 0 1px var(--control-border);overflow:hidden;margin-bottom:12px}.option{display:flex;justify-content:space-between;padding:10px 12px;font-size:13px;color:var(--control-text)}.option span{color:var(--text-muted);font-size:12px}.option.hover{background:var(--dropdown-option-hover-bg)}.option.selected{background:var(--dropdown-option-selected-bg);font-weight:760}
+.row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid color-mix(in srgb,var(--border-soft) 82%,transparent 18%)}.row b{font-size:14px}.switch{width:42px;height:24px;padding:3px;border-radius:999px;background:var(--switch-track-on);flex:0 0 auto}.switch i{display:block;width:18px;height:18px;margin-left:18px;border-radius:50%;background:var(--switch-thumb);box-shadow:0 2px 6px rgba(0,0,0,.18)}.switch.off{background:var(--switch-track-off)}.switch.off i{margin-left:0}
+.buttons{display:flex;flex-wrap:wrap;gap:10px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--border-soft) 82%,transparent 18%)}.btn{border:0;border-radius:11px;padding:9px 14px;font-size:13px;font-weight:760;line-height:1;cursor:default}.primary{background:var(--button-primary-bg);color:var(--button-primary-text);box-shadow:0 6px 16px color-mix(in srgb,var(--button-primary-bg) 22%,transparent 78%)}.primary:hover{background:var(--button-primary-hover)}.secondary{background:var(--button-secondary-bg);color:var(--button-secondary-text);box-shadow:inset 0 0 0 1px var(--control-border)}.secondary:hover{background:var(--button-secondary-hover)}.ghost{background:transparent;color:var(--button-ghost-text);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--button-ghost-text) 28%,transparent 72%)}.ghost:hover{background:var(--button-ghost-hover-bg)}.danger{background:var(--button-danger-bg);color:var(--button-danger-text)}.danger:hover{background:var(--button-danger-hover)}button:disabled,input:disabled,select:disabled{background:var(--disabled-bg);color:var(--disabled-text);box-shadow:inset 0 0 0 1px var(--border-soft)}
+pre{background:var(--code-bg);color:var(--text-primary);border-radius:16px;padding:16px 18px;box-shadow:inset 0 0 0 1px var(--border-soft);overflow:auto}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:var(--table-header-bg);color:var(--heading-2)}th,td{border:1px solid var(--table-border);padding:10px 12px;text-align:left}
+.swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:18px 24px 24px}.sw{display:flex;align-items:center;gap:10px;background:rgba(127,127,127,.08);border-radius:13px;padding:9px;min-width:0}.sw i{width:28px;height:28px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(127,127,127,.24);flex:0 0 auto}.sw b{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sw code{font-size:11px;color:var(--text-muted)}
+@media(max-width:1100px){.layout{grid-template-columns:1fr}.swatches{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.page{padding:24px 14px}.grid{grid-template-columns:1fr}.swatches{grid-template-columns:1fr}.reader{padding:24px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Warm Paper 配色细化：含按钮与下拉框</h1>
+  <div class="intro">这版只保留 Warm Paper，并补齐设置界面需要的按钮、下拉框、输入框、开关、禁用态、焦点态等控件颜色。</div>
+  <div class="note"><strong>新增范围：</strong>主按钮、次按钮、幽灵按钮、危险按钮、输入框、下拉框、下拉菜单、选中项、悬停项、开关、禁用态、焦点环。</div>
+
+<section class="theme light">
+  <div class="top"><b>明亮主题</b><span>Warm Paper · 阅读视图 + 设置控件细化</span></div>
+  <div class="layout">
+    <aside class="panel outline">
+      <h3>ReadFlow</h3>
+      <div class="search">搜索 Markdown 文档…</div>
+      <p class="cap">当前文档大纲</p>
+      <div class="toc">1. 阅读视图</div><div class="toc active">2. 设置控件</div><div class="toc">3. 代码与表格</div><div class="toc">4. 引用与脚注</div>
+    </aside>
+    <main class="panel reader">
+      <h1>Warm Paper 控件颜色补全</h1>
+      <div class="meta">阅读视图里的按钮、下拉框、输入框、开关、禁用态、焦点态均已加入 token。</div>
+      <p>这版仍然保持 Warm Paper 的温润纸感。正文、标题、链接、引用、表格、代码块继续服务于阅读；设置界面控件则使用同一套暖棕色逻辑，不会突然变成后台系统风格。</p>
+      <blockquote>主按钮使用强调色，次按钮使用低对比暖色块，输入框和下拉框使用接近纸面的浅层 surface。</blockquote>
+
+      <div class="settings">
+        <div class="settings-head">
+          <div><h2>阅读设置</h2><p>主题、字体、字号、行距、同步选项</p></div>
+          <button class="btn ghost">重置</button>
+        </div>
+        <div class="grid">
+          <label>主题模式<select><option>Warm Paper · 跟随系统</option></select></label>
+          <label>默认字体<input placeholder="输入字体名称，例如 LXGW WenKai" /></label>
+        </div>
+        <div class="dropdown">
+          <div class="option selected">Warm Paper 明亮 <span>当前</span></div>
+          <div class="option hover">Warm Paper 暗色 <span>夜间</span></div>
+          <div class="option">跟随系统 <span>Auto</span></div>
+        </div>
+        <div class="row"><div><b>进入专注阅读模式</b><p>隐藏工具栏，只保留大纲和阅读视图。</p></div><em class="switch"><i></i></em></div>
+        <div class="row"><div><b>自动同步阅读位置</b><p>该项展示关闭状态的开关颜色。</p></div><em class="switch off"><i></i></em></div>
+        <div class="buttons">
+          <button class="btn primary">保存设置</button>
+          <button class="btn secondary">取消</button>
+          <button class="btn ghost">导入主题</button>
+          <button class="btn danger">删除主题</button>
+          <button class="btn secondary" disabled>不可用</button>
+        </div>
+      </div>
+
+      <h2>代码与表格</h2>
+      <pre><code>const controls = {
+  buttonPrimaryBg: "#8A5A3C",
+  controlBg: "#FCF7F1",
+  dropdownSelectedBg: "#E7D3BD"
+}</code></pre>
+      <table><thead><tr><th>控件</th><th>Token</th><th>颜色</th></tr></thead><tbody>
+        <tr><td>主按钮</td><td>button-primary-bg</td><td>#8A5A3C</td></tr>
+        <tr><td>下拉框</td><td>control-bg</td><td>#FCF7F1</td></tr>
+        <tr><td>焦点态</td><td>control-focus-border</td><td>#A66E4F</td></tr>
+      </tbody></table>
+    </main>
+  </div>
+  <div class="swatches"><div class="sw"><i style="background:#EDE4D7"></i><b>整体背景</b><code>#EDE4D7</code></div><div class="sw"><i style="background:#F8F2EA"></i><b>大纲/阅读背景</b><code>#F8F2EA</code></div><div class="sw"><i style="background:#EEE5D8"></i><b>代码块背景</b><code>#EEE5D8</code></div><div class="sw"><i style="background:#2B2621"></i><b>正文文字</b><code>#2B2621</code></div><div class="sw"><i style="background:#6F655B"></i><b>次级文字</b><code>#6F655B</code></div><div class="sw"><i style="background:#8A5A3C"></i><b>强调色</b><code>#8A5A3C</code></div><div class="sw"><i style="background:#8A5A3C"></i><b>主按钮</b><code>#8A5A3C</code></div><div class="sw"><i style="background:#E7D3BD"></i><b>次按钮</b><code>#E7D3BD</code></div><div class="sw"><i style="background:#8A5A3C"></i><b>幽灵按钮文字</b><code>#8A5A3C</code></div><div class="sw"><i style="background:#9B5A4A"></i><b>危险按钮</b><code>#9B5A4A</code></div><div class="sw"><i style="background:#FCF7F1"></i><b>输入/下拉背景</b><code>#FCF7F1</code></div><div class="sw"><i style="background:#D8C8B8"></i><b>控件边框</b><code>#D8C8B8</code></div><div class="sw"><i style="background:#A66E4F"></i><b>焦点边框</b><code>#A66E4F</code></div><div class="sw"><i style="background:#FFF8F0"></i><b>下拉菜单背景</b><code>#FFF8F0</code></div><div class="sw"><i style="background:#E7D3BD"></i><b>下拉选中项</b><code>#E7D3BD</code></div><div class="sw"><i style="background:#8A5A3C"></i><b>开关开启</b><code>#8A5A3C</code></div></div>
+</section>
+
+
+<section class="theme dark">
+  <div class="top"><b>暗色主题</b><span>Warm Paper · 阅读视图 + 设置控件细化</span></div>
+  <div class="layout">
+    <aside class="panel outline">
+      <h3>ReadFlow</h3>
+      <div class="search">搜索 Markdown 文档…</div>
+      <p class="cap">当前文档大纲</p>
+      <div class="toc">1. 阅读视图</div><div class="toc active">2. 设置控件</div><div class="toc">3. 代码与表格</div><div class="toc">4. 引用与脚注</div>
+    </aside>
+    <main class="panel reader">
+      <h1>Warm Paper 控件颜色补全</h1>
+      <div class="meta">阅读视图里的按钮、下拉框、输入框、开关、禁用态、焦点态均已加入 token。</div>
+      <p>这版仍然保持 Warm Paper 的温润纸感。正文、标题、链接、引用、表格、代码块继续服务于阅读；设置界面控件则使用同一套暖棕色逻辑，不会突然变成后台系统风格。</p>
+      <blockquote>主按钮使用强调色，次按钮使用低对比暖色块，输入框和下拉框使用接近纸面的浅层 surface。</blockquote>
+
+      <div class="settings">
+        <div class="settings-head">
+          <div><h2>阅读设置</h2><p>主题、字体、字号、行距、同步选项</p></div>
+          <button class="btn ghost">重置</button>
+        </div>
+        <div class="grid">
+          <label>主题模式<select><option>Warm Paper · 跟随系统</option></select></label>
+          <label>默认字体<input placeholder="输入字体名称，例如 LXGW WenKai" /></label>
+        </div>
+        <div class="dropdown">
+          <div class="option selected">Warm Paper 明亮 <span>当前</span></div>
+          <div class="option hover">Warm Paper 暗色 <span>夜间</span></div>
+          <div class="option">跟随系统 <span>Auto</span></div>
+        </div>
+        <div class="row"><div><b>进入专注阅读模式</b><p>隐藏工具栏，只保留大纲和阅读视图。</p></div><em class="switch"><i></i></em></div>
+        <div class="row"><div><b>自动同步阅读位置</b><p>该项展示关闭状态的开关颜色。</p></div><em class="switch off"><i></i></em></div>
+        <div class="buttons">
+          <button class="btn primary">保存设置</button>
+          <button class="btn secondary">取消</button>
+          <button class="btn ghost">导入主题</button>
+          <button class="btn danger">删除主题</button>
+          <button class="btn secondary" disabled>不可用</button>
+        </div>
+      </div>
+
+      <h2>代码与表格</h2>
+      <pre><code>const controls = {
+  buttonPrimaryBg: "#C28A63",
+  controlBg: "#2A241E",
+  dropdownSelectedBg: "#433126"
+}</code></pre>
+      <table><thead><tr><th>控件</th><th>Token</th><th>颜色</th></tr></thead><tbody>
+        <tr><td>主按钮</td><td>button-primary-bg</td><td>#C28A63</td></tr>
+        <tr><td>下拉框</td><td>control-bg</td><td>#2A241E</td></tr>
+        <tr><td>焦点态</td><td>control-focus-border</td><td>#C28A63</td></tr>
+      </tbody></table>
+    </main>
+  </div>
+  <div class="swatches"><div class="sw"><i style="background:#151210"></i><b>整体背景</b><code>#151210</code></div><div class="sw"><i style="background:#211C17"></i><b>大纲/阅读背景</b><code>#211C17</code></div><div class="sw"><i style="background:#2B241E"></i><b>代码块背景</b><code>#2B241E</code></div><div class="sw"><i style="background:#E8DFD2"></i><b>正文文字</b><code>#E8DFD2</code></div><div class="sw"><i style="background:#B1A597"></i><b>次级文字</b><code>#B1A597</code></div><div class="sw"><i style="background:#C28A63"></i><b>强调色</b><code>#C28A63</code></div><div class="sw"><i style="background:#C28A63"></i><b>主按钮</b><code>#C28A63</code></div><div class="sw"><i style="background:#433126"></i><b>次按钮</b><code>#433126</code></div><div class="sw"><i style="background:#D0A17F"></i><b>幽灵按钮文字</b><code>#D0A17F</code></div><div class="sw"><i style="background:#B16A5B"></i><b>危险按钮</b><code>#B16A5B</code></div><div class="sw"><i style="background:#2A241E"></i><b>输入/下拉背景</b><code>#2A241E</code></div><div class="sw"><i style="background:#45392F"></i><b>控件边框</b><code>#45392F</code></div><div class="sw"><i style="background:#C28A63"></i><b>焦点边框</b><code>#C28A63</code></div><div class="sw"><i style="background:#2A241E"></i><b>下拉菜单背景</b><code>#2A241E</code></div><div class="sw"><i style="background:#433126"></i><b>下拉选中项</b><code>#433126</code></div><div class="sw"><i style="background:#C28A63"></i><b>开关开启</b><code>#C28A63</code></div></div>
+</section>
+
+</div>
+</body></html>
