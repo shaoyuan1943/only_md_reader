@@ -281,6 +281,7 @@ export async function renderMarkdownDocument(
     const outlineItems = extractOutlineFromAst(options.content);
     const html = String(
       await createMarkdownProcessor({
+        codeThemeName: codeTheme.name,
         filePath: options.filePath,
         resolveImageSrc: options.resolveImageSrc,
       }).process(preprocessed),
@@ -336,9 +337,11 @@ function extractOutlineFromAst(content: string): ReaderOutlineItem[] {
 }
 
 function createMarkdownProcessor({
+  codeThemeName,
   filePath,
   resolveImageSrc,
 }: {
+  codeThemeName: "Eva Light Bold" | "Eva Dark Bold";
   filePath: string;
   resolveImageSrc?: (absolutePath: string) => string;
 }) {
@@ -349,15 +352,17 @@ function createMarkdownProcessor({
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
     .use(rehypeKatex, { throwOnError: false, strict: "ignore" } as never)
-    .use(rehypeReaderEnhancements, { filePath, resolveImageSrc })
+    .use(rehypeReaderEnhancements, { codeThemeName, filePath, resolveImageSrc })
     .use(rehypeSanitize, readerSanitizeSchema as never)
     .use(rehypeStringify, { allowDangerousHtml: false });
 }
 
 function rehypeReaderEnhancements({
+  codeThemeName,
   filePath,
   resolveImageSrc,
 }: {
+  codeThemeName: "Eva Light Bold" | "Eva Dark Bold";
   filePath: string;
   resolveImageSrc?: (absolutePath: string) => string;
 }) {
@@ -387,6 +392,14 @@ function rehypeReaderEnhancements({
           properties: { className: ["markdown-table-wrapper"] },
           children: [node],
         };
+      }
+
+      if (node.tagName === "pre" && parent?.children && typeof index === "number") {
+        const classes = classList(node.properties?.className);
+
+        if (!classes.includes("markdown-code-block")) {
+          parent.children[index] = createPlainTextCodeScroller(node, codeThemeName);
+        }
       }
 
       if (node.tagName === "img") {
@@ -473,6 +486,51 @@ function renderPlainTextCodeBlock({
   return `<pre class="markdown-code-block" data-language="${escapeAttribute(
     language || "text",
   )}" data-code-theme="${codeThemeName}"><code>${escapeHtml(code)}</code></pre>`;
+}
+
+function createPlainTextCodeScroller(
+  preNode: Element,
+  codeThemeName: "Eva Light Bold" | "Eva Dark Bold",
+): Element {
+  const code = hastToString(preNode).replace(/\n$/, "");
+
+  preNode.properties = {
+    ...preNode.properties,
+    className: ["markdown-code-block"],
+    dataLanguage: "text",
+    dataCodeTheme: codeThemeName,
+  };
+
+  return {
+    type: "element",
+    tagName: "div",
+    properties: { className: ["markdown-code-scroller"] },
+    children: [
+      {
+        type: "element",
+        tagName: "button",
+        properties: {
+          ariaLabel: "复制代码块",
+          className: ["markdown-code-copy-button"],
+          dataCopyCode: encodeURIComponent(code),
+          title: "复制代码块",
+          type: "button",
+        },
+        children: [
+          {
+            type: "element",
+            tagName: "span",
+            properties: {
+              ariaHidden: "true",
+              className: ["markdown-code-copy-icon"],
+            },
+            children: [],
+          },
+        ],
+      },
+      preNode,
+    ],
+  };
 }
 
 async function highlightCodeBlock({

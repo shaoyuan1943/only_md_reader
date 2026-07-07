@@ -21,6 +21,7 @@ const theme = validateThemeTokenBundle(warmPaper);
 let currentSettings: ReaderSettings = {
   ...defaultReaderSettings,
   bodyFontFamily: "Georgia",
+  codeFontFamily: "Consolas",
   themeMode: "light",
 };
 
@@ -116,7 +117,18 @@ const content = [
   "export function visibleCodeBlock() {",
   "  return 'code block remains readable';",
   "}",
+  "const intentionallyLongReaderQaLine = 'this code line is deliberately long so the code scroller keeps horizontal scrolling while markdown tables wrap into the reading width';",
   "```",
+  "",
+  "| 方案 | 能修什么 | 代价 |",
+  "| --- | --- | --- |",
+  "| A. 末尾补缺（补未闭合 stop / 全空 content 补空 text） | 修不了中段交错；仅修未闭合、空 content | 极低，保持流式 |",
+  "| B. 完整 SSE 规范化（缓冲+重排+重序列化） | 交错/倒序/空 content 全能修 | 破坏透传低延迟；影响全部 anthropic apikey 流量；需开关灰度 |",
+  "",
+  "Indented code block:",
+  "",
+  "    API Error: API returned an empty or malformed response (HTTP 200)",
+  "    -- check for a proxy or gateway intercepting the request",
   "",
   "[Open external reader link](https://example.com/only-md-reader-link)",
   "",

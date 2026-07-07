@@ -240,7 +240,7 @@ export function SettingsWindow({ api = createSettingsApi() }: SettingsWindowProp
             </p>
           ) : null}
         </section>
-        <div className="settings-version">MD极简阅读 · v0.1.3</div>
+        <div className="settings-version">MD极简阅读 · v0.1.4</div>
       </section>
     </main>
   );

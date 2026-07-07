@@ -320,6 +320,45 @@ void test("enhances CRLF unlabeled fenced code blocks with the reader code wrapp
   assert.match(rendered.html, /alpha # comment/);
 });
 
+void test("enhances CommonMark indented code blocks with the reader code wrapper", async () => {
+  const rendered = await renderMarkdownDocument({
+    content: [
+      "# Indented Code",
+      "",
+      "Before.",
+      "",
+      "    API Error: API returned an empty or malformed response (HTTP 200)",
+      "    -- check for a proxy or gateway intercepting the request",
+      "",
+      "After.",
+    ].join("\n"),
+    filePath: resolve(fixturesDir, "basic-syntax.md"),
+    themeMode: "light",
+  });
+
+  assert.equal(rendered.error, null);
+  assert.match(rendered.html, /markdown-code-scroller/);
+  assert.match(rendered.html, /class="markdown-code-block"/);
+  assert.match(rendered.html, /data-language="text"/);
+  assert.match(
+    rendered.html,
+    /data-copy-code="API%20Error%3A%20API%20returned%20an%20empty%20or%20malformed%20response%20\(HTTP%20200\)%0A--%20check%20for%20a%20proxy%20or%20gateway%20intercepting%20the%20request"/,
+  );
+  assert.match(rendered.html, /API Error: API returned an empty or malformed response/);
+  assert.match(rendered.html, /After\./);
+});
+
+void test("indented code blocks inherit the active code theme", async () => {
+  const rendered = await renderMarkdownDocument({
+    content: "    plain indented code",
+    filePath: resolve(fixturesDir, "basic-syntax.md"),
+    themeMode: "dark",
+  });
+
+  assert.equal(rendered.error, null);
+  assert.match(rendered.html, /data-code-theme="Eva Dark Bold"/);
+});
+
 void test("render errors produce a readable fallback document", () => {
   const rendered = createMarkdownRenderError(new Error("boom"), "# Title");
 

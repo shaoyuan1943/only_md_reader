@@ -822,7 +822,9 @@ body,
 }
 
 .markdown-rendered-document table {
-  min-width: max-content;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -833,6 +835,9 @@ body,
   padding: 9px 11px;
   text-align: left;
   vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-rendered-document th {

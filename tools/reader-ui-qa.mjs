@@ -116,6 +116,17 @@ async function main() {
         initialLayout.outlineItemFontFamily,
         initialLayout.markdownFontFamily,
       );
+      assert.match(initialLayout.readerCodeFontVariable, /Consolas/);
+      assert.match(initialLayout.indentedCodeFontFamily, /Consolas/);
+      assert.equal(initialLayout.indentedCodeHasReaderClass, true);
+      assert.equal(initialLayout.indentedCodeCopyButtonExists, true);
+      assert.equal(initialLayout.longCodeScrollerHasHorizontalOverflow, true);
+      assert.equal(initialLayout.tableLayoutMode, "fixed");
+      assert.equal(initialLayout.tableCellWhiteSpace, "normal");
+      assert.equal(initialLayout.tableCellOverflowWrap, "anywhere");
+      assert.equal(initialLayout.tableCellWordBreak, "break-word");
+      assert.equal(initialLayout.tableFitsWrapper, true);
+      assert.equal(initialLayout.longTableCellWrapped, true);
       assert.equal(initialLayout.outlineToggleVisible, true);
       assert.equal(initialLayout.outlineToggleIconSize.width, 16);
       assert.equal(initialLayout.outlineToggleIconSize.height, 16);
@@ -904,7 +915,10 @@ async function main() {
       assert.equal(selectionAfterWheel.bubbleVisible, false);
 
       await evaluate(cdp, () => {
-        document.querySelector(".markdown-code-copy-button")?.click();
+        const codeScroller = Array.from(
+          document.querySelectorAll(".markdown-code-scroller"),
+        ).find((scroller) => scroller.textContent?.includes("visibleCodeBlock"));
+        codeScroller?.querySelector(".markdown-code-copy-button")?.click();
       });
       await waitForExpression(
         cdp,
@@ -971,6 +985,26 @@ async function collectLayout(cdp) {
     );
     const codeCopyButton = document.querySelector(".markdown-code-copy-button");
     const codeCopyIcon = document.querySelector(".markdown-code-copy-icon");
+    const codeScrollers = Array.from(
+      document.querySelectorAll(".markdown-code-scroller"),
+    );
+    const indentedCodeBlock = Array.from(
+      document.querySelectorAll(".markdown-code-block"),
+    ).find((block) => block.textContent?.includes("API Error"));
+    const indentedCodeScroller = indentedCodeBlock?.closest(".markdown-code-scroller");
+    const indentedCodeCopyButton = indentedCodeScroller?.querySelector(
+      ".markdown-code-copy-button",
+    );
+    const longCodeScroller = codeScrollers.find((scroller) =>
+      scroller.textContent?.includes("visibleCodeBlock"),
+    );
+    const wrappingTable = Array.from(
+      document.querySelectorAll(".markdown-table-wrapper table"),
+    ).find((table) => table.textContent?.includes("破坏透传低延迟"));
+    const wrappingTableWrapper = wrappingTable?.closest(".markdown-table-wrapper");
+    const wrappingTableCell = Array.from(
+      wrappingTable?.querySelectorAll("td") ?? [],
+    ).find((cell) => cell.textContent?.includes("破坏透传低延迟"));
     const markdownDocument = document.querySelector(".markdown-rendered-document");
     const settings = document.querySelector(".reader-preview-settings-button");
     const documentElement = document.documentElement;
@@ -1014,6 +1048,18 @@ async function collectLayout(cdp) {
       clientWidth: longOutlineText?.clientWidth ?? 0,
       scrollWidth: longOutlineText?.scrollWidth ?? 0,
     };
+    const wrappingTableCellTextLineCount = (() => {
+      if (!wrappingTableCell) {
+        return 0;
+      }
+
+      const range = document.createRange();
+      range.selectNodeContents(wrappingTableCell);
+
+      return Array.from(range.getClientRects()).filter(
+        (rect) => rect.width > 0 && rect.height > 0,
+      ).length;
+    })();
 
     function fitsViewport(element) {
       const rect = element.getBoundingClientRect();
@@ -1076,6 +1122,15 @@ async function collectLayout(cdp) {
         ),
       hasReadingCard: Boolean(reading),
       hasCodeBlock: Boolean(document.querySelector(".markdown-code-block")),
+      indentedCodeHasReaderClass: Boolean(indentedCodeBlock),
+      indentedCodeCopyButtonExists: Boolean(indentedCodeCopyButton),
+      indentedCodeFontFamily: indentedCodeBlock
+        ? getComputedStyle(indentedCodeBlock).fontFamily
+        : "",
+      longCodeScrollerHasHorizontalOverflow: Boolean(
+        longCodeScroller &&
+          longCodeScroller.scrollWidth > longCodeScroller.clientWidth + 1,
+      ),
       codeCopyButtonVisible: Boolean(codeCopyButton && fitsViewport(codeCopyButton)),
       codeCopyButtonSize: {
         width: Math.round(codeCopyButtonRect?.width ?? 0),
@@ -1118,10 +1173,32 @@ async function collectLayout(cdp) {
       },
       hasMathError: Boolean(document.querySelector(".markdown-math-error")),
       hasTableScroller: Boolean(document.querySelector(".markdown-table-wrapper")),
+      tableLayoutMode: wrappingTable ? getComputedStyle(wrappingTable).tableLayout : "",
+      tableCellWhiteSpace: wrappingTableCell
+        ? getComputedStyle(wrappingTableCell).whiteSpace
+        : "",
+      tableCellOverflowWrap: wrappingTableCell
+        ? getComputedStyle(wrappingTableCell).overflowWrap
+        : "",
+      tableCellWordBreak: wrappingTableCell
+        ? getComputedStyle(wrappingTableCell).wordBreak
+        : "",
+      tableFitsWrapper: Boolean(
+        wrappingTable &&
+          wrappingTableWrapper &&
+          wrappingTable.scrollWidth <= wrappingTableWrapper.clientWidth + 1,
+      ),
+      longTableCellWrapped: Boolean(
+        wrappingTableCellTextLineCount > 1,
+      ),
+      wrappingTableCellTextLineCount,
       hasHorizontalDocumentOverflow:
         documentElement.scrollWidth > documentElement.clientWidth,
       readerBodyFontVariable: getComputedStyle(documentElement)
         .getPropertyValue("--reader-body-font-family")
+        .trim(),
+      readerCodeFontVariable: getComputedStyle(documentElement)
+        .getPropertyValue("--reader-code-font-family")
         .trim(),
       markdownFontFamily: markdownDocument
         ? getComputedStyle(markdownDocument).fontFamily

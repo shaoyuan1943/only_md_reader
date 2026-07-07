@@ -814,6 +814,14 @@ void test("markdown syntax colors are sourced from ui_colors css variables", () 
     appCss,
     /\.markdown-rendered-document th\s*{[^}]*\bbackground:\s*var\(--table-header-bg\);/s,
   );
+  assert.match(
+    appCss,
+    /\.markdown-rendered-document table\s*{[^}]*\bwidth:\s*100%;[^}]*\bmin-width:\s*0;[^}]*\btable-layout:\s*fixed;/s,
+  );
+  assert.match(
+    appCss,
+    /\.markdown-rendered-document th,\s*\.markdown-rendered-document td\s*{[^}]*\bwhite-space:\s*normal;[^}]*\boverflow-wrap:\s*anywhere;[^}]*\bword-break:\s*break-word;/s,
+  );
   assert.doesNotMatch(appCss, /\.markdown-[^{]*{[^}]*#[0-9a-fA-F]{3,8}/s);
 });
 
@@ -1379,7 +1387,7 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
 });
 
 void test("settings window displays the package version", () => {
-  assert.equal(packageJson.version, "0.1.3");
+  assert.equal(packageJson.version, "0.1.4");
   assert.equal(tauriConfig.version, packageJson.version);
   assert.match(
     settingsWindowTsx,
