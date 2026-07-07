@@ -255,7 +255,7 @@ void test("startup transition theme follows the app theme setting in every windo
   assert.match(readerWindowsRs, /startup_boot_theme_script/);
 });
 
-void test("desktop window remains hidden until the graphic boot layer can paint", () => {
+void test("desktop window remains hidden until React reveals the committed app frame", () => {
   const [mainWindow] = tauriConfig.app?.windows ?? [];
   const bootWindowTs = readBootWindowEntry();
 
@@ -268,10 +268,13 @@ void test("desktop window remains hidden until the graphic boot layer can paint"
     indexHtml,
     /<div id="boot-screen"[\s\S]*?<\/div>\s*<script type="module" src="\/src\/boot-window\.ts"><\/script>\s*<div id="root"/,
   );
-  assert.match(bootWindowTs, /getCurrentWindow/);
-  assert.match(bootWindowTs, /\.show\(\)/);
+  assert.doesNotMatch(bootWindowTs, /getCurrentWindow/);
+  assert.doesNotMatch(bootWindowTs, /\.show\(\)/);
+  assert.match(mainTsx, /getCurrentWindow/);
+  assert.match(mainTsx, /\.show\(\)/);
   assert.match(bootWindowTs, /__TAURI_INTERNALS__/);
   assert.ok(defaultCapability.permissions?.includes("core:window:allow-show"));
+  assert.ok(defaultCapability.permissions?.includes("core:window:allow-maximize"));
 });
 
 void test("reader windows share the desktop capability boundary", () => {
@@ -281,6 +284,7 @@ void test("reader windows share the desktop capability boundary", () => {
   assert.ok(capability.windows?.includes("reader-*"));
   assert.ok(capability.permissions?.includes("core:default"));
   assert.ok(capability.permissions?.includes("core:window:allow-show"));
+  assert.ok(capability.permissions?.includes("core:window:allow-maximize"));
 });
 
 void test("entry html renders a graphic-only boot screen before React loads", () => {
@@ -370,11 +374,28 @@ void test("React entry fades out the boot screen after the first committed frame
   assert.match(mainTsx, /hideBootScreen/);
   assert.match(mainTsx, /MIN_BOOT_SCREEN_MS\s*=\s*640/);
   assert.match(mainTsx, /BOOT_SCREEN_FADE_MS\s*=\s*220/);
+  assert.match(mainTsx, /__ONLY_MD_READER_BOOTSTRAP__\?\.windowKind/);
   assert.match(mainTsx, /requestAnimationFrame/);
-  assert.match(mainTsx, /queueMicrotask\(hideBootScreen\)/);
-  assert.match(mainTsx, /},\s*MIN_BOOT_SCREEN_MS\)/);
+  assert.match(mainTsx, /READER_READY_TO_REVEAL_EVENT/);
+  assert.match(mainTsx, /window\.addEventListener\(\s*READER_READY_TO_REVEAL_EVENT/);
+  assert.match(mainTsx, /if\s*\(\s*windowKind\s*===\s*"reader"\s*\)/);
+  assert.match(mainTsx, /return;\s*}\s*queueMicrotask\(\(\)\s*=>\s*hideBootScreen/);
+  assert.match(mainTsx, /},\s*revealDelayMs\)/);
+  assert.match(mainTsx, /currentWindow\.show\(\)/);
+  assert.match(mainTsx, /windowKind\s*===\s*"reader"[\s\S]*?\.maximize\(\)/);
   assert.match(mainTsx, /boot-screen/);
   assert.match(mainTsx, /boot-screen--leaving/);
+});
+
+void test("reader windows reveal only after markdown render has committed", () => {
+  assert.match(readerWindowTsx, /READER_READY_TO_REVEAL_EVENT/);
+  assert.match(readerWindowTsx, /window\.dispatchEvent/);
+  assert.match(readerWindowTsx, /new Event\(READER_READY_TO_REVEAL_EVENT\)/);
+  assert.match(
+    readerWindowTsx,
+    /if\s*\(\s*isRendering\s*\)\s*{\s*return undefined;\s*}/,
+  );
+  assert.match(readerWindowTsx, /requestAnimationFrame/);
 });
 
 void test("entry html has critical paint fallbacks before React loads", () => {
@@ -612,7 +633,7 @@ void test("reader command hides the source open-file window before the slow open
   assert.match(readerWindowsRs, /\.show\(\)/);
 });
 
-void test("reader windows open maximized, stay resizable, and clamp drag resizing to the two-column minimum", () => {
+void test("reader windows stay hidden until reveal, then open maximized and preserve the two-column minimum", () => {
   const readerWindowsRs = readFileSync(
     new URL("../src-tauri/src/reader_windows.rs", import.meta.url),
     "utf8",
@@ -650,7 +671,14 @@ void test("reader windows open maximized, stay resizable, and clamp drag resizin
   );
   assert.match(readerWindowsRs, /\.resizable\(true\)/);
   assert.match(readerWindowsRs, /\.maximizable\(true\)/);
-  assert.match(readerWindowsRs, /\.maximized\(true\)/);
+  assert.match(readerWindowsRs, /\.visible\(false\)/);
+  assert.doesNotMatch(
+    readerWindowsRs,
+    /\.maximized\(true\)/,
+    "reader windows must not maximize during native construction because WebView2 can expose a blank loading surface before React is ready",
+  );
+  assert.match(mainTsx, /windowKind\s*===\s*"reader"[\s\S]*?\.maximize\(\)/);
+  assert.ok(defaultCapability.permissions?.includes("core:window:allow-maximize"));
   assert.doesNotMatch(readerWindowsRs, /\.resizable\(false\)/);
   assert.doesNotMatch(readerWindowsRs, /\.max_inner_size\(/);
   assert.doesNotMatch(readerWindowsRs, /\.maximizable\(false\)/);
@@ -1351,7 +1379,7 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
 });
 
 void test("settings window displays the package version", () => {
-  assert.equal(packageJson.version, "0.1.2");
+  assert.equal(packageJson.version, "0.1.3");
   assert.equal(tauriConfig.version, packageJson.version);
   assert.match(
     settingsWindowTsx,

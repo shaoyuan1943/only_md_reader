@@ -293,7 +293,6 @@ fn create_reader_window(
             .min_inner_size(READER_WINDOW_MIN_WIDTH, READER_WINDOW_MIN_HEIGHT)
             .resizable(true)
             .maximizable(true)
-            .maximized(true)
             .visible(false)
             .background_color(background_color)
             .initialization_script(initialization_script);

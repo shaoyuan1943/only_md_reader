@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-show",
+    "core:window:allow-maximize",
     "opener:default",
     "dialog:allow-open"
   ]

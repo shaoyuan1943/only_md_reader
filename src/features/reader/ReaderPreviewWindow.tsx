@@ -45,6 +45,7 @@ import type { WindowState } from "./window-state.ts";
 import { getRestoreTarget } from "./window-state.ts";
 import type { WindowStateApi } from "./window-state-api.ts";
 import { createWindowStateApi } from "./window-state-api.ts";
+import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
 
 const OUTLINE_VIEWPORT_OFFSET = 56;
 const OUTLINE_ACTIVE_ITEM_MARGIN = 24;
@@ -305,6 +306,20 @@ export function ReaderPreviewWindow({
     rendered.html,
     renderedOutlineIds,
   ]);
+
+  useLayoutEffect(() => {
+    if (isRendering) {
+      return undefined;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event(READER_READY_TO_REVEAL_EVENT));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isRendering, rendered.html]);
 
   useEffect(() => {
     const scroller = readingScrollerRef.current;

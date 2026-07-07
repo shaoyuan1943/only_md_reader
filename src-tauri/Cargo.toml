@@ -1,6 +1,6 @@
 [package]
 name = "only-md-reader"
-version = "0.1.2"
+version = "0.1.3"
 description = "A pure Markdown reader built with Tauri and React"
 authors = ["shaoyuan <84977043@qq.com>"]
 edition = "2021"
