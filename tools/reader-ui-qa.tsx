@@ -35,6 +35,9 @@ declare global {
 window.__qaReaderSettingsOpened = 0;
 window.__qaSavedWindowStates = [];
 
+const qaFilePath =
+  "E:\\only_md_reader\\fixtures\\markdown\\reader-ui-qa\\very-long-folder-segment-for-header-copy-check\\another-very-long-folder-segment-to-force-ellipsis\\and-a-third-long-folder-segment\\reader-ui-qa-document-with-an-intentionally-long-absolute-path-for-copy-button-validation.md";
+
 applyReaderSettingsToRoot(theme, currentSettings, document.documentElement, false);
 
 const qaSettingsApi: SettingsApi = {
@@ -77,7 +80,7 @@ const qaSettingsApi: SettingsApi = {
 const qaWindowStateApi: WindowStateApi = {
   getWindowState() {
     return Promise.resolve({
-      filePath: "E:\\only_md_reader\\fixtures\\markdown\\reader-ui-qa.md",
+      filePath: qaFilePath,
       scrollTop: 0,
       scrollRatio: 0,
       updatedAt: new Date(0).toISOString(),
@@ -185,7 +188,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ReaderPreviewWindow
       file={{
-        path: "E:\\only_md_reader\\fixtures\\markdown\\reader-ui-qa.md",
+        path: qaFilePath,
         fileName: "reader-ui-qa.md",
         content,
         openedAt: 0,

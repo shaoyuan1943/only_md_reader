@@ -137,6 +137,19 @@ async function main() {
         `hide-outline rail button should sit in the middle of the card gap: button=${initialLayout.outlineToggleCenterX}, gap=${initialLayout.cardGapCenterX}`,
       );
       assert.equal(initialLayout.selectionCopyBubbleVisible, false);
+      assert.equal(initialLayout.filePathRowFitsViewport, true);
+      assert.equal(initialLayout.filePathCopyVisible, true);
+      assert.equal(initialLayout.filePathCopySize.width, 24);
+      assert.equal(initialLayout.filePathCopySize.height, 24);
+      assert.equal(initialLayout.filePathCopyIconSize.width, 16);
+      assert.equal(initialLayout.filePathCopyIconSize.height, 16);
+      assert.equal(initialLayout.filePathCopyBackground, "rgba(0, 0, 0, 0)");
+      assert.equal(initialLayout.filePathCopyIsBeforeText, true);
+      assert.equal(initialLayout.filePathTitleMatchesText, true);
+      assert.equal(initialLayout.filePathTextOverflow, "hidden");
+      assert.equal(initialLayout.filePathTextOverflowMode, "ellipsis");
+      assert.equal(initialLayout.filePathTextWhiteSpace, "nowrap");
+      assert.equal(initialLayout.filePathTextIsTruncated, true);
       assert.equal(initialLayout.codeCopyButtonVisible, true);
       assert.equal(initialLayout.codeCopyButtonSize.width, 24);
       assert.equal(initialLayout.codeCopyButtonSize.height, 24);
@@ -406,6 +419,23 @@ async function main() {
           },
         });
       });
+
+      await evaluate(cdp, () => {
+        window.__qaClipboardWrites = [];
+        document.querySelector(".reader-preview-file-path-copy-button")?.click();
+      });
+      await waitForExpression(
+        cdp,
+        "window.__qaClipboardWrites?.includes(document.querySelector('.reader-preview-file-path')?.textContent ?? '') === true",
+        10_000,
+      );
+
+      const filePathCopy = await evaluate(cdp, () => ({
+        copiedText: window.__qaClipboardWrites?.at(-1) ?? "",
+        pathText:
+          document.querySelector(".reader-preview-file-path")?.textContent?.trim() ?? "",
+      }));
+      assert.equal(filePathCopy.copiedText, filePathCopy.pathText);
 
       await evaluate(cdp, () => {
         document.dispatchEvent(
@@ -1007,6 +1037,11 @@ async function collectLayout(cdp) {
     ).find((cell) => cell.textContent?.includes("破坏透传低延迟"));
     const markdownDocument = document.querySelector(".markdown-rendered-document");
     const settings = document.querySelector(".reader-preview-settings-button");
+    const filePathRow = document.querySelector(".reader-preview-file-path-row");
+    const filePathText = document.querySelector(".reader-preview-file-path");
+    const filePathCopyButton = document.querySelector(
+      ".reader-preview-file-path-copy-button",
+    );
     const documentElement = document.documentElement;
     const outlineDepthRows = Array.from(
       document.querySelectorAll(".reader-preview-outline-row"),
@@ -1025,7 +1060,13 @@ async function collectLayout(cdp) {
     const codeCopyButtonRect = codeCopyButton?.getBoundingClientRect();
     const codeCopyIconRect = codeCopyIcon?.getBoundingClientRect();
     const settingsRect = settings?.getBoundingClientRect();
+    const filePathTextRect = filePathText?.getBoundingClientRect();
+    const filePathCopyButtonRect = filePathCopyButton?.getBoundingClientRect();
     const settingsStyle = settings ? getComputedStyle(settings) : null;
+    const filePathTextStyle = filePathText ? getComputedStyle(filePathText) : null;
+    const filePathCopyButtonStyle = filePathCopyButton
+      ? getComputedStyle(filePathCopyButton)
+      : null;
     const outlineToggleStyle = outlineToggle ? getComputedStyle(outlineToggle) : null;
     const codeCopyButtonStyle = codeCopyButton
       ? getComputedStyle(codeCopyButton)
@@ -1166,6 +1207,37 @@ async function collectLayout(cdp) {
         selectionCopyBubble &&
         selectionCopyBubble.getAttribute("data-visible") === "true" &&
         fitsViewport(selectionCopyBubble),
+      ),
+      filePathRowFitsViewport: Boolean(filePathRow && fitsViewport(filePathRow)),
+      filePathCopyVisible: Boolean(
+        filePathCopyButton && fitsViewport(filePathCopyButton),
+      ),
+      filePathCopySize: {
+        width: Math.round(filePathCopyButtonRect?.width ?? 0),
+        height: Math.round(filePathCopyButtonRect?.height ?? 0),
+      },
+      filePathCopyIconSize: {
+        width: Math.round(
+          filePathCopyButton?.querySelector("svg")?.getBoundingClientRect().width ?? 0,
+        ),
+        height: Math.round(
+          filePathCopyButton?.querySelector("svg")?.getBoundingClientRect().height ?? 0,
+        ),
+      },
+      filePathCopyBackground: filePathCopyButtonStyle?.backgroundColor ?? "",
+      filePathCopyIsBeforeText: Boolean(
+        filePathCopyButtonRect &&
+          filePathTextRect &&
+          filePathCopyButtonRect.left < filePathTextRect.left,
+      ),
+      filePathTitleMatchesText:
+        (filePathText?.getAttribute("title") ?? "") ===
+        (filePathText?.textContent?.trim() ?? ""),
+      filePathTextOverflow: filePathTextStyle?.overflow ?? "",
+      filePathTextOverflowMode: filePathTextStyle?.textOverflow ?? "",
+      filePathTextWhiteSpace: filePathTextStyle?.whiteSpace ?? "",
+      filePathTextIsTruncated: Boolean(
+        filePathText && filePathText.scrollWidth > filePathText.clientWidth + 1,
       ),
       selectionCopyBubbleSize: {
         width: Math.round(selectionCopyBubbleRect?.width ?? 0),

@@ -1124,6 +1124,36 @@ void test("reader supports immersive outline toggling and copy affordances", () 
   );
 });
 
+void test("reader file path keeps a dedicated copy button ahead of truncated text", () => {
+  assert.match(readerWindowTsx, /reader-preview-file-path-row/);
+  assert.match(readerWindowTsx, /reader-preview-file-path-copy-button/);
+  assert.match(readerWindowTsx, /aria-label="复制完整文件路径"/);
+  assert.match(readerWindowTsx, /title="复制完整文件路径"/);
+  assert.match(readerWindowTsx, /void copyText\(preview\.pathLine\)/);
+  assert.match(
+    readerWindowTsx,
+    /reader-preview-file-path-copy-button[\s\S]*<\/button>\s*<p[\s\S]*className="reader-preview-file-path"/,
+  );
+  assert.match(readerWindowTsx, /title=\{preview\.pathLine\}/);
+
+  assert.match(
+    appCss,
+    /\.reader-preview-file-path-row\s*{[^}]*\bdisplay:\s*flex;[^}]*\balign-items:\s*center;[^}]*\bgap:\s*10px;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-file-path-copy-button\s*{[^}]*\bwidth:\s*24px;[^}]*\bheight:\s*24px;[^}]*\bbackground:\s*transparent;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-file-path-copy-button svg\s*{[^}]*\bwidth:\s*16px;[^}]*\bheight:\s*16px;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-file-path\s*{[^}]*\boverflow:\s*hidden;[^}]*\btext-overflow:\s*ellipsis;[^}]*\bwhite-space:\s*nowrap;/s,
+  );
+});
+
 void test("desktop backend registers settings, settings-window, and window-state commands", () => {
   const settingsWindowRs = readFileSync(
     new URL("../src-tauri/src/settings_window.rs", import.meta.url),
@@ -1387,7 +1417,7 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
 });
 
 void test("settings window displays the package version", () => {
-  assert.equal(packageJson.version, "0.1.4");
+  assert.equal(packageJson.version, "0.1.5");
   assert.equal(tauriConfig.version, packageJson.version);
   assert.match(
     settingsWindowTsx,

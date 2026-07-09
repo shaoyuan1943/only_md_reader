@@ -686,6 +686,11 @@ export function ReaderPreviewWindow({
     }
   }, [copyText, selectionCopyBubble?.text]);
 
+  const handleFilePathCopy = useCallback(() => {
+    setSelectionCopyBubble(null);
+    void copyText(preview.pathLine);
+  }, [copyText, preview.pathLine]);
+
   const handleToggleOutline = useCallback(() => {
     setIsOutlineHidden((current) => !current);
     setSelectionCopyBubble(null);
@@ -941,9 +946,24 @@ export function ReaderPreviewWindow({
           scrollerRef={readingScrollerRef}
         >
           <article className="reader-preview-document">
-            <p className="reader-preview-file-path" id="reader-preview-title">
-              {preview.pathLine}
-            </p>
+            <div className="reader-preview-file-path-row">
+              <button
+                className="reader-preview-file-path-copy-button"
+                type="button"
+                aria-label="复制完整文件路径"
+                title="复制完整文件路径"
+                onClick={handleFilePathCopy}
+              >
+                <CopyIcon />
+              </button>
+              <p
+                className="reader-preview-file-path"
+                id="reader-preview-title"
+                title={preview.pathLine}
+              >
+                {preview.pathLine}
+              </p>
+            </div>
 
             <section
               className="reader-preview-source-section markdown-render-surface"

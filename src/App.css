@@ -549,6 +549,7 @@ body,
 
 .reader-preview-outline-item:focus-visible,
 .reader-preview-outline-rail-button:focus-visible,
+.reader-preview-file-path-copy-button:focus-visible,
 .reader-preview-selection-copy-button:focus-visible,
 .markdown-code-copy-button:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -573,19 +574,54 @@ body,
   margin: 0 auto;
 }
 
+.reader-preview-file-path-row,
 .reader-preview-file-path,
 .reader-preview-source-copy {
   margin: 0;
 }
 
+.reader-preview-file-path-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.reader-preview-file-path-copy-button {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.reader-preview-file-path-copy-button:hover {
+  color: var(--accent);
+}
+
+.reader-preview-file-path-copy-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .reader-preview-file-path {
-  margin-bottom: 26px;
+  min-width: 0;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 520;
   letter-spacing: 0;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   user-select: none;
 }
 
