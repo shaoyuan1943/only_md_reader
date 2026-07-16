@@ -10,3 +10,5 @@ PDF 导出 V1 只允许用户点击阅读窗口右下角、设置按钮上方的
 验证：
 
 `pnpm qa:pdf-export` 使用本地 Vite QA 页面和本机 Chromium 的 headless print-to-PDF 生成多页 A4 PDF，并检查产物非空且至少两页。
+
+在 Windows 的 Tauri 运行时，导出桥接调用 WebView2 原生系统打印对话框，避免浏览器预览自动添加日期、标题、URL 和页码；浏览器 QA 与非 Windows 运行时回退至 `window.print()`。

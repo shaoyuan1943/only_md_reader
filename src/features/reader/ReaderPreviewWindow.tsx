@@ -48,6 +48,7 @@ import { createWindowStateApi } from "./window-state-api.ts";
 import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
 import { startPdfExport } from "../export-pdf/export-pdf.ts";
 import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
+import { createPdfExportApi } from "../export-pdf/pdf-export-api.ts";
 
 const OUTLINE_VIEWPORT_OFFSET = 56;
 const OUTLINE_ACTIVE_ITEM_MARGIN = 24;
@@ -56,6 +57,7 @@ const COPY_BUBBLE_INLINE_OFFSET_PX = 10;
 const COPY_BUBBLE_BLOCK_OFFSET_PX = 8;
 const SELECTION_COPY_BUTTON_SIZE_PX = 32;
 const TEXT_SELECTION_DRAG_THRESHOLD_PX = 10;
+const pdfExportApi = createPdfExportApi();
 
 type ReaderPreviewWindowProps = {
   file: OpenedMarkdownFile;
@@ -864,7 +866,7 @@ export function ReaderPreviewWindow({
             document,
             root,
           }),
-        print: () => window.print(),
+        print: () => pdfExportApi.openPrintDialog(),
       });
 
       if (result.kind === "resource-timeout") {

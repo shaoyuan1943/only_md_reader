@@ -582,6 +582,13 @@
   - macOS：若无实机环境，明确记录“未验证”，不得以 Windows 结果替代。
   - 验收标准：运行 `pnpm tauri build --no-bundle --ci` 成功；汇报中区分已完成、已验证、未验证和已知限制。
   - 验证记录：2026-07-16 已运行 `pnpm test`（167/167）、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm qa:reader-ui`、`pnpm qa:markdown-performance`、`pnpm qa:pdf-export`、`pnpm qa:screenshots`、`cargo test --manifest-path src-tauri\Cargo.toml`（26/26）和 `pnpm tauri build --no-bundle --ci`，全部通过。`qa:pdf-export` 实际生成 4 页、195596 bytes 的 A4 PDF。Windows release exe 的 UI Automation 已定位并调用“导出为PDF文档”按钮；系统打印预览在同一阅读窗口内暴露“打印”“打印机”“取消”“PDF Document”“包含 2 页的 PDF 文档”等可访问元素，确认真实系统打印流程已打开。
+
+- [x] 16.10 修正 Windows 打印对话框和浏览器自动页眉页脚。完成时间：2026-07-16
+  - 原因：前端 `window.print()` 打开 WebView2 浏览器打印预览，自动输出日期、应用标题、`tauri.localhost` 和页码，并占用整个阅读窗口。
+  - 实现：Windows 调用 WebView2 `ICoreWebView2_16::ShowPrintUI(COREWEBVIEW2_PRINT_DIALOG_KIND_SYSTEM)` 打开紧凑系统对话框；非 Windows 保留 `window.print()` 回退。导出流程等待原生请求完成后才恢复按钮状态。
+  - 验收标准：Windows 不再进入浏览器预览，用户仍可在系统对话框选择 PDF 打印机，PDF 不含上述浏览器自动页眉页脚。
+  - 验证记录：2026-07-16 已新增前端桥接和异步打印请求单元测试，并完成 `cargo check --manifest-path src-tauri\Cargo.toml` 与 release 构建；最终 Windows 系统对话框及实际 PDF 内容待在可点击到导出控件的 release 窗口中复验。
+
 ## 17. 批注阶段，第一版完成后再启动
 
 - [ ] 16.1 解析已有 CriticMarkup。完成时间：

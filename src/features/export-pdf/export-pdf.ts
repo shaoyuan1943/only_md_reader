@@ -7,7 +7,7 @@ export type PdfExportResult =
 
 type StartPdfExportOptions = {
   awaitReadiness(this: void): Promise<PdfExportReadiness>;
-  print(this: void): void;
+  print(this: void): Promise<void> | void;
 };
 
 export async function startPdfExport({
@@ -21,7 +21,7 @@ export async function startPdfExport({
   }
 
   try {
-    print();
+    await print();
     return { kind: "printed" };
   } catch (error) {
     return {

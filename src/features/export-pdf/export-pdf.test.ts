@@ -16,6 +16,29 @@ void test("prints exactly once after readiness succeeds", async () => {
   assert.equal(prints, 1);
 });
 
+void test("waits for the native system print dialog request before reporting success", async () => {
+  let resolvePrint: (() => void) | undefined;
+  let settled = false;
+
+  const result = startPdfExport({
+    awaitReadiness: () => Promise.resolve({ kind: "ready" }),
+    print: () =>
+      new Promise<void>((resolve) => {
+        resolvePrint = resolve;
+      }),
+  }).then((value) => {
+    settled = true;
+    return value;
+  });
+
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.equal(settled, false);
+  resolvePrint?.();
+  assert.deepEqual(await result, { kind: "printed" });
+});
+
 void test("does not print when export resources time out", async () => {
   let prints = 0;
 
