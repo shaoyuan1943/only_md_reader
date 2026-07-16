@@ -12,29 +12,30 @@
 
 ## Files
 
-| 路径 | 职责 |
-|---|---|
-| `src/features/export-pdf/export-readiness.ts` | 等待字体、正文图片和两个最终布局帧；返回 ready/timeout。 |
-| `src/features/export-pdf/export-readiness.test.ts` | 资源就绪、失败图片、超时和布局帧的 Node 单测。 |
-| `src/features/export-pdf/export-pdf.ts` | 调用 readiness 后执行注入的打印函数，返回可显示的结果。 |
-| `src/features/export-pdf/export-pdf.test.ts` | 成功打印、超时不打印、打印异常的单测。 |
-| `src/features/export-pdf/pdf-export.css` | A4 浅色打印样式、隐藏 UI、解除滚动、分页与宽内容规则。 |
-| `src/features/markdown/markdown-renderer.ts` | 为 Shiki 代码块同时输出 Eva Light/Dark CSS variables，使 print 可选择轻色 token。 |
-| `src/features/markdown/markdown-renderer.test.ts` | 验证双主题 Shiki token 输出与屏幕主题回归。 |
-| `src/features/export-pdf/README.md` | 导出模块的边界与测试说明。 |
-| `src/features/reader/ReaderPreviewWindow.tsx` | PDF 按钮、用户指定 SVG、导出状态、错误提示和打印快捷键拦截。 |
-| `src/features/reader/reader-preview.ts` | 导出按钮文案。 |
-| `src/App.css` | 屏幕态导出按钮和状态样式；导入打印 CSS。 |
-| `src/main.tsx` | 导入 `pdf-export.css`。 |
-| `tools/reader-ui-qa.tsx` | 给导出按钮和复杂 Markdown 样本提供 QA hook。 |
-| `tools/reader-ui-qa.mjs` | 验证按钮位置、提示、点击触发、资源等待和快捷键拦截。 |
-| `tools/pdf-export-qa.mjs` | 切换 print media、调用 `Page.printToPDF`、检查真实 PDF。 |
-| `package.json` | 把导出模块单测加入 `test:unit`，新增 `qa:pdf-export`。 |
-| `AGENTS.md` | 将 `pnpm qa:pdf-export` 追加到固定 QA 链路。 |
+| 路径                                               | 职责                                                                              |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `src/features/export-pdf/export-readiness.ts`      | 等待字体、正文图片和两个最终布局帧；返回 ready/timeout。                          |
+| `src/features/export-pdf/export-readiness.test.ts` | 资源就绪、失败图片、超时和布局帧的 Node 单测。                                    |
+| `src/features/export-pdf/export-pdf.ts`            | 调用 readiness 后执行注入的打印函数，返回可显示的结果。                           |
+| `src/features/export-pdf/export-pdf.test.ts`       | 成功打印、超时不打印、打印异常的单测。                                            |
+| `src/features/export-pdf/pdf-export.css`           | A4 浅色打印样式、隐藏 UI、解除滚动、分页与宽内容规则。                            |
+| `src/features/markdown/markdown-renderer.ts`       | 为 Shiki 代码块同时输出 Eva Light/Dark CSS variables，使 print 可选择轻色 token。 |
+| `src/features/markdown/markdown-renderer.test.ts`  | 验证双主题 Shiki token 输出与屏幕主题回归。                                       |
+| `src/features/export-pdf/README.md`                | 导出模块的边界与测试说明。                                                        |
+| `src/features/reader/ReaderPreviewWindow.tsx`      | PDF 按钮、用户指定 SVG、导出状态、错误提示和打印快捷键拦截。                      |
+| `src/features/reader/reader-preview.ts`            | 导出按钮文案。                                                                    |
+| `src/App.css`                                      | 屏幕态导出按钮和状态样式；导入打印 CSS。                                          |
+| `src/main.tsx`                                     | 导入 `pdf-export.css`。                                                           |
+| `tools/reader-ui-qa.tsx`                           | 给导出按钮和复杂 Markdown 样本提供 QA hook。                                      |
+| `tools/reader-ui-qa.mjs`                           | 验证按钮位置、提示、点击触发、资源等待和快捷键拦截。                              |
+| `tools/pdf-export-qa.mjs`                          | 切换 print media、调用 `Page.printToPDF`、检查真实 PDF。                          |
+| `package.json`                                     | 把导出模块单测加入 `test:unit`，新增 `qa:pdf-export`。                            |
+| `AGENTS.md`                                        | 将 `pnpm qa:pdf-export` 追加到固定 QA 链路。                                      |
 
 ## Task 1: 写出资源就绪状态机（TDD）
 
 **Files:**
+
 - Create: `src/features/export-pdf/export-readiness.test.ts`
 - Create: `src/features/export-pdf/export-readiness.ts`
 
@@ -74,6 +75,7 @@ Expected: PASS，4 个测试通过。
 ## Task 2: 编排打印调用（TDD）
 
 **Files:**
+
 - Create: `src/features/export-pdf/export-pdf.test.ts`
 - Create: `src/features/export-pdf/export-pdf.ts`
 
@@ -84,7 +86,9 @@ void test("prints exactly once after readiness succeeds", async () => {
   let prints = 0;
   const result = await startPdfExport({
     awaitReadiness: async () => ({ kind: "ready" }),
-    print: () => { prints += 1; },
+    print: () => {
+      prints += 1;
+    },
   });
   assert.deepEqual(result, { kind: "printed" });
   assert.equal(prints, 1);
@@ -110,6 +114,7 @@ Expected: PASS，3 个测试通过。
 ## Task 3: 接入阅读窗口与用户指定按钮（TDD + UI QA）
 
 **Files:**
+
 - Modify: `src/features/reader/ReaderPreviewWindow.tsx`
 - Modify: `src/features/reader/reader-preview.ts`
 - Modify: `src/App.css`
@@ -153,6 +158,7 @@ Expected: PASS，新增导出断言和现有阅读交互均通过。
 ## Task 4: 编写 A4 浅色打印样式（TDD + print-media QA）
 
 **Files:**
+
 - Create: `src/features/export-pdf/pdf-export.css`
 - Modify: `src/main.tsx`
 - Modify: `src/features/markdown/markdown-renderer.ts`
@@ -183,6 +189,7 @@ Expected: PASS，并生成 `output/playwright/pdf-export-qa.pdf` 与页面 PNG �
 ## Task 5: 接入测试、文档与完整验证
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `AGENTS.md`
 - Create: `src/features/export-pdf/README.md`
@@ -228,6 +235,7 @@ git commit -m "feat: add system print PDF export"
 - Design coverage: 唯一按钮、无快捷键、指定 SVG、A4 浅色、无文件名/路径/页眉页脚、资源稳定、失败图片、超时、分页、真实 PDF QA、Windows 实机验证都被任务覆盖。
 - Intentional exclusions: 没有添加保存路径、静默写 PDF、Pandoc/LaTeX、原生 WebView 或 Rust PDF API。
 - Placeholder scan: 没有 `TBD`、`TODO` 或“适当处理”式步骤；每个代码任务均有明确文件、测试和命令。
+
 ## Critical plan revision (Shiki print theme)
 
 当前 `highlightCodeBlock` 只输出当前明暗主题的 inline token color；仅用打印 CSS 把代码块背景改白会使暗色主题中的浅 token 在 PDF 上不可读。实施必须把 Shiki 输出改成双主题 CSS variables，并在打印媒体固定取 `--shiki-light`。这不是扩大范围，而是满足已确认的“PDF 固定浅色代码主题”要求；对应修改和测试已加入 Task 4。

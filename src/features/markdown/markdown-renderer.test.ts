@@ -391,3 +391,15 @@ void test("markdown syntax color map only references theme css variables", () =>
 async function readFixture(name: string): Promise<string> {
   return readFile(resolve(fixturesDir, name), "utf8");
 }
+
+void test("PDF printing can select the bundled light Shiki tokens", async () => {
+  const rendered = await renderMarkdownDocument({
+    content: "```ts\nconst printed = true;\n```",
+    filePath: resolve(fixturesDir, "basic-syntax.md"),
+    themeMode: "dark",
+  });
+
+  assert.equal(rendered.error, null);
+  assert.match(rendered.html, /--shiki-light:/);
+  assert.match(rendered.html, /--shiki-dark:/);
+});

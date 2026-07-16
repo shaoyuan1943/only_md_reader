@@ -27,6 +27,7 @@ void test("reader preview exposes the full path and raw markdown content", () =>
       },
     ],
     settingsLabel: "设置",
+    pdfExportLabel: "导出为PDF文档",
   });
 });
 
@@ -45,6 +46,7 @@ void test("reader preview does not synthesize a document title when markdown has
   assert.equal(preview.outlineItems.length, 0);
   assert.equal(preview.outlinePlaceholder, "暂无大纲");
   assert.equal(preview.settingsLabel, "设置");
+  assert.equal(preview.pdfExportLabel, "导出为PDF文档");
 });
 
 void test("reader preview displays Windows extended-length paths as normal local paths", () => {

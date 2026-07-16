@@ -16,6 +16,7 @@ export type ReaderPreviewViewModel = {
   outlinePlaceholder: string;
   outlineItems: ReaderPreviewOutlineItem[];
   settingsLabel: string;
+  pdfExportLabel: string;
 };
 
 export function createReaderPreviewViewModel(
@@ -32,6 +33,7 @@ export function createReaderPreviewViewModel(
     outlinePlaceholder: "暂无大纲",
     outlineItems,
     settingsLabel: "设置",
+    pdfExportLabel: "导出为PDF文档",
   };
 }
 

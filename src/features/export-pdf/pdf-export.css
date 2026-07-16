@@ -1,0 +1,147 @@
+@page {
+  size: A4;
+  margin: 18mm 16mm 20mm;
+}
+
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #2b2621 !important;
+  }
+
+  .reader-preview-shell,
+  .reader-preview-layout,
+  .reader-preview-reading-card,
+  .reader-preview-scroll,
+  .reader-preview-document,
+  .reader-preview-source-section,
+  .markdown-rendered-document {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  .reader-preview-layout {
+    display: block !important;
+  }
+
+  .reader-preview-outline-card,
+  .reader-preview-outline-rail-button,
+  .reader-preview-file-path-row,
+  .reader-preview-settings-button,
+  .reader-preview-pdf-export-button,
+  .reader-preview-settings-error,
+  .reader-preview-pdf-export-error,
+  .reader-preview-selection-copy-button,
+  .reader-preview-scrollbar-hotzone,
+  .reader-preview-scrollbar-track,
+  .markdown-code-copy-button {
+    display: none !important;
+  }
+
+  .markdown-rendered-document {
+    color: #2b2621 !important;
+    font-size: 11pt;
+    line-height: 1.72;
+  }
+
+  .markdown-rendered-document h1,
+  .markdown-rendered-document h2,
+  .markdown-rendered-document h3,
+  .markdown-rendered-document h4,
+  .markdown-rendered-document h5,
+  .markdown-rendered-document h6 {
+    color: #241f1a !important;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  .markdown-rendered-document a {
+    color: #6b3f27 !important;
+    text-decoration: underline;
+  }
+
+  .markdown-code-scroller,
+  .markdown-table-wrapper,
+  .katex-display {
+    overflow: visible !important;
+  }
+
+  .markdown-code-scroller,
+  .markdown-rendered-document blockquote,
+  .markdown-table-wrapper,
+  .katex-display,
+  .markdown-rendered-document img {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .markdown-code-scroller {
+    border: 1px solid #d7cbbc !important;
+    border-radius: 6px !important;
+    background: #ebeef5 !important;
+    box-shadow: none !important;
+  }
+
+  .markdown-code-block {
+    min-width: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: #2b2621 !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .markdown-code-block [style*="--shiki-light"] {
+    color: var(--shiki-light) !important;
+  }
+
+  .markdown-rendered-document table {
+    table-layout: auto !important;
+    font-size: 9pt;
+  }
+
+  .markdown-rendered-document th {
+    background: #f1e7da !important;
+    color: #3a332c !important;
+  }
+
+  .markdown-rendered-document th,
+  .markdown-rendered-document td {
+    border-color: #d7cbbc !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .markdown-rendered-document img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 0 !important;
+  }
+
+  .markdown-image-fallback {
+    display: inline-flex !important;
+    border-color: #9b5a4a !important;
+    background: #fff !important;
+    color: #9b5a4a !important;
+  }
+}

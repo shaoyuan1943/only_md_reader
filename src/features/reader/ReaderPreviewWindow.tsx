@@ -46,6 +46,8 @@ import { getRestoreTarget } from "./window-state.ts";
 import type { WindowStateApi } from "./window-state-api.ts";
 import { createWindowStateApi } from "./window-state-api.ts";
 import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
+import { startPdfExport } from "../export-pdf/export-pdf.ts";
+import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
 
 const OUTLINE_VIEWPORT_OFFSET = 56;
 const OUTLINE_ACTIVE_ITEM_MARGIN = 24;
@@ -140,6 +142,8 @@ export function ReaderPreviewWindow({
   const [selectionCopyBubble, setSelectionCopyBubble] =
     useState<SelectionCopyBubbleState | null>(null);
   const [settingsOpenError, setSettingsOpenError] = useState<string | null>(null);
+  const [isPdfExportPreparing, setIsPdfExportPreparing] = useState(false);
+  const [pdfExportError, setPdfExportError] = useState<string | null>(null);
   const lockedOutlineJumpIdRef = useRef<string | null>(null);
   const outlinePointerIntentRef = useRef<{
     isSelecting: boolean;
@@ -626,6 +630,24 @@ export function ReaderPreviewWindow({
     [finishTextSelection],
   );
 
+  useEffect(() => {
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (
+        !event.altKey &&
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "p"
+      ) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener("keydown", handleDocumentKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+    };
+  }, []);
+
   const handleShellKeyUp = useCallback(() => {
     handleSelectionChange();
   }, [handleSelectionChange]);
@@ -825,6 +847,40 @@ export function ReaderPreviewWindow({
     return Boolean(selection && !selection.isCollapsed && selection.toString().trim());
   };
 
+  async function handlePdfExport() {
+    const root = readingScrollerRef.current;
+
+    if (!root || isRendering || isPdfExportPreparing) {
+      return;
+    }
+
+    setPdfExportError(null);
+    setIsPdfExportPreparing(true);
+
+    try {
+      const result = await startPdfExport({
+        awaitReadiness: () =>
+          waitForPdfExportReadiness({
+            document,
+            root,
+          }),
+        print: () => window.print(),
+      });
+
+      if (result.kind === "resource-timeout") {
+        setPdfExportError(
+          "图片尚未加载完成，暂未开始导出。请检查图片路径或网络后重试。",
+        );
+      } else if (result.kind === "print-failed") {
+        setPdfExportError(`无法打开系统打印窗口：${result.message}`);
+      }
+    } catch (error) {
+      setPdfExportError(`无法准备 PDF 导出：${getErrorMessage(error)}`);
+    } finally {
+      setIsPdfExportPreparing(false);
+    }
+  }
+
   async function handleOpenSettings() {
     try {
       setSettingsOpenError(null);
@@ -983,6 +1039,23 @@ export function ReaderPreviewWindow({
               />
             </section>
           </article>
+
+          <button
+            className="reader-preview-pdf-export-button"
+            type="button"
+            aria-label={preview.pdfExportLabel}
+            aria-busy={isPdfExportPreparing}
+            title={preview.pdfExportLabel}
+            disabled={isRendering || isPdfExportPreparing}
+            onClick={() => void handlePdfExport()}
+          >
+            <PdfExportIcon />
+          </button>
+          {pdfExportError ? (
+            <p className="reader-preview-pdf-export-error" role="alert">
+              {pdfExportError}
+            </p>
+          ) : null}
 
           <button
             className="reader-preview-settings-button"
@@ -2082,6 +2155,17 @@ function CopyIcon() {
       />
       <path
         d="M603.52 423.68H192a32 32 0 0 1-32-32 32 32 0 0 1 32-32h411.52a32 32 0 0 1 32 32 32 32 0 0 1-32 32zM603.52 617.6H192a32 32 0 0 1 0-64h411.52a32 32 0 0 1 0 64zM603.52 810.88H192a32 32 0 0 1-32-32 32 32 0 0 1 32-32h411.52a32 32 0 0 1 32 32 32 32 0 0 1-32 32z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function PdfExportIcon() {
+  return (
+    <svg viewBox="0 0 1024 1024" aria-hidden="true">
+      <path
+        d="M945.347 615.848c-19.88-23.607-60.647-35.084-124.629-35.084-37.19 0-82.116 3.928-133.603 11.676C546.488 489.619 507.222 376.188 507.222 376.188s24.018-61.146 25.542-161.012c0.964-63.13-8.813-105.715-34.07-130.455-9.818-9.617-26.287-15.831-41.957-15.831-12.23 0-23.682 3.592-33.066 10.459-73.106 53.494 6.71 305.676 8.846 312.394-34.5 84.906-77.96 174.858-122.691 253.899-14.534 25.68-13.117 23.672-25.37 44.555 0 0-123.713 58.109-183.721 129.479-33.905 40.328-38.191 67.553-36.391 88.301l0.045 0.453c2.856 24.432 34.133 46.68 65.62 46.68 1.306 0 2.62-0.039 3.907-0.119 32.001-1.975 67.069-24.713 107.207-69.516 26.493-29.576 60.922-81.609 102.377-154.715 118.939-33.834 223.61-57.932 311.331-71.676 64.329 34.619 160.036 73.824 225.187 73.824 21.854 0 39.435-4.455 52.252-13.242 15.336-10.508 21.849-23.604 25.896-47.85C962.215 647.572 956.58 629.186 945.347 615.848zM806.399 645.367c57.181 0 88.141 8.314 104.046 15.289 4.905 2.152 8.473 4.227 11.005 5.961-4.483 2.863-13.298 6.479-29.23 6.479-26.418 0-61.092-9.225-103.384-27.479C794.852 645.451 800.709 645.367 806.399 645.367zM467.511 119.504c0.04-0.075 0.084-0.153 0.134-0.234 12.266 6.459 17.99 51.818 16.84 78.119-1.543 35.295-1.909 48.933-8.106 70.617C459.581 222.799 458.389 141.54 467.511 119.504zM471.997 477.314c28.844 46.842 71.622 97.577 112.835 133.801-80.44 17.002-157.675 38.313-205.733 54.898C430.612 578.049 468.615 486.032 471.997 477.314zM140.913 881.24c6.979-11.625 26.047-34.15 74.404-77.707-33.146 49.852-57.493 76.998-82.194 93.93C135.168 892.125 137.741 886.525 140.913 881.24z"
         fill="currentColor"
       />
     </svg>

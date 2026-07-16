@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "pnpm test:unit && pnpm typecheck",
-    "test:unit": "node --test --experimental-strip-types src/app-shell.test.ts src/qa-workflows.test.ts src/shared/theme/theme-schema.test.ts src/shared/theme/apply-theme.test.ts src/features/open-file/open-file-dialog.test.ts src/features/open-file/open-file-api.test.ts src/features/open-file/open-file-status.test.ts src/features/open-file/recent-files.test.ts src/features/markdown/markdown-renderer.test.ts src/features/reader/reader-image-state.test.ts src/features/reader/reader-link-navigation.test.ts src/features/reader/reader-outline.test.ts src/features/reader/reader-preview.test.ts src/features/reader/scroll-chrome.test.ts src/features/reader/window-state.test.ts src/features/reader/window-state-api.test.ts src/features/settings/apply-reader-settings.test.ts src/features/settings/reader-settings.test.ts src/features/settings/settings-api.test.ts src/features/settings/settings-window.test.ts",
+    "test:unit": "node --test --experimental-strip-types src/app-shell.test.ts src/qa-workflows.test.ts src/shared/theme/theme-schema.test.ts src/shared/theme/apply-theme.test.ts src/features/open-file/open-file-dialog.test.ts src/features/open-file/open-file-api.test.ts src/features/open-file/open-file-status.test.ts src/features/open-file/recent-files.test.ts src/features/markdown/markdown-renderer.test.ts src/features/export-pdf/export-readiness.test.ts src/features/export-pdf/export-pdf.test.ts src/features/reader/reader-image-state.test.ts src/features/reader/reader-link-navigation.test.ts src/features/reader/reader-outline.test.ts src/features/reader/reader-preview.test.ts src/features/reader/scroll-chrome.test.ts src/features/reader/window-state.test.ts src/features/reader/window-state-api.test.ts src/features/settings/apply-reader-settings.test.ts src/features/settings/reader-settings.test.ts src/features/settings/settings-api.test.ts src/features/settings/settings-window.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"vite.config.ts\" --max-warnings=0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\" \"src-tauri/capabilities/**/*.json\" \"src-tauri/tauri.conf.json\" \"*.{json,ts,js,html}\"",
@@ -21,7 +21,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:msi": "tauri build --bundles msi"
+    "tauri:build:msi": "tauri build --bundles msi",
+    "qa:pdf-export": "node tools/pdf-export-qa.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

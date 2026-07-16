@@ -1,3 +1,5 @@
+@import "./features/export-pdf/pdf-export.css";
+
 html,
 body,
 #root {
@@ -853,6 +855,14 @@ body,
   font-family: inherit;
 }
 
+.markdown-code-block[data-code-theme="Eva Light Bold"] {
+  color: var(--shiki-light, var(--text-primary));
+}
+
+.markdown-code-block[data-code-theme="Eva Dark Bold"] {
+  color: var(--shiki-dark, var(--text-primary));
+}
+
 .markdown-table-wrapper {
   margin: 22px 0;
 }
@@ -1008,6 +1018,63 @@ body,
   .reader-preview-scrollbar-thumb {
   background: color-mix(in srgb, var(--app-bg) 46%, var(--text-secondary) 54%);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-bg) 50%, transparent);
+}
+
+.reader-preview-pdf-export-button {
+  position: absolute;
+  right: 6px;
+  bottom: 44px;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--control-bg);
+  color: var(--accent);
+  box-shadow:
+    0 15px 34px color-mix(in srgb, var(--accent) 20%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--control-border) 88%, transparent);
+  cursor: pointer;
+}
+
+.reader-preview-pdf-export-button:hover:not(:disabled) {
+  background: var(--control-hover-bg);
+  color: var(--accent-hover);
+}
+
+.reader-preview-pdf-export-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.reader-preview-pdf-export-button:disabled {
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+  cursor: wait;
+}
+
+.reader-preview-pdf-export-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.reader-preview-pdf-export-error {
+  position: absolute;
+  right: 28px;
+  bottom: 122px;
+  z-index: 4;
+  max-width: 300px;
+  margin: 0;
+  border-left: 4px solid var(--button-danger-bg);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--button-danger-bg) 12%, var(--surface-bg));
+  color: var(--button-danger-bg);
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .reader-preview-settings-button {
