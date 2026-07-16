@@ -43,6 +43,11 @@
     display: block !important;
   }
 
+  .reader-preview-reading-card::before {
+    background: none !important;
+    display: none !important;
+  }
+
   .reader-preview-outline-card,
   .reader-preview-outline-rail-button,
   .reader-preview-file-path-row,
@@ -58,9 +63,17 @@
   }
 
   .markdown-rendered-document {
-    color: #2b2621 !important;
+    color: #000 !important;
     font-size: 11pt;
     line-height: 1.72;
+  }
+
+  .markdown-rendered-document * {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: #000 !important;
+    text-shadow: none !important;
   }
 
   .markdown-rendered-document h1,
@@ -69,13 +82,13 @@
   .markdown-rendered-document h4,
   .markdown-rendered-document h5,
   .markdown-rendered-document h6 {
-    color: #241f1a !important;
+    color: #000 !important;
     break-after: avoid-page;
     page-break-after: avoid;
   }
 
   .markdown-rendered-document a {
-    color: #6b3f27 !important;
+    color: #000 !important;
     text-decoration: underline;
   }
 
@@ -95,9 +108,9 @@
   }
 
   .markdown-code-scroller {
-    border: 1px solid #d7cbbc !important;
-    border-radius: 6px !important;
-    background: #ebeef5 !important;
+    border: 1px solid #4d4d4d !important;
+    border-radius: 0 !important;
+    background: #fff !important;
     box-shadow: none !important;
   }
 
@@ -105,14 +118,14 @@
     min-width: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
-    color: #2b2621 !important;
+    color: #000 !important;
     white-space: pre-wrap !important;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
 
   .markdown-code-block [style*="--shiki-light"] {
-    color: var(--shiki-light) !important;
+    color: #000 !important;
   }
 
   .markdown-rendered-document table {
@@ -121,13 +134,13 @@
   }
 
   .markdown-rendered-document th {
-    background: #f1e7da !important;
-    color: #3a332c !important;
+    background: #fff !important;
+    color: #000 !important;
   }
 
   .markdown-rendered-document th,
   .markdown-rendered-document td {
-    border-color: #d7cbbc !important;
+    border-color: #4d4d4d !important;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -140,8 +153,8 @@
 
   .markdown-image-fallback {
     display: inline-flex !important;
-    border-color: #9b5a4a !important;
+    border-color: #4d4d4d !important;
     background: #fff !important;
-    color: #9b5a4a !important;
+    color: #000 !important;
   }
 }

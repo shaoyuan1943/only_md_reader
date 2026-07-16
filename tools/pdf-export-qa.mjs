@@ -129,11 +129,24 @@ async function main() {
       const notificationStack = document.querySelector('.reader-preview-notifications');
       const settings = document.querySelector('.reader-preview-settings-button');
       const scroller = document.querySelector('.reader-preview-scroll');
+      const shell = document.querySelector('.reader-preview-shell');
+      const readingCard = document.querySelector('.reader-preview-reading-card');
+      const codeScroller = document.querySelector('.markdown-code-scroller');
+      const codeToken = document.querySelector('.markdown-code-block .line span');
+      const tableHeader = document.querySelector('.markdown-rendered-document th');
+      const link = document.querySelector('.markdown-rendered-document a');
       return {
         documentOverflow: documentRoot ? getComputedStyle(documentRoot).overflow : '',
         notificationDisplay: notificationStack ? getComputedStyle(notificationStack).display : '',
         settingsDisplay: settings ? getComputedStyle(settings).display : '',
         scrollerOverflow: scroller ? getComputedStyle(scroller).overflow : '',
+        shellBackground: shell ? getComputedStyle(shell).backgroundColor : '',
+        readingCardBackground: readingCard ? getComputedStyle(readingCard).backgroundColor : '',
+        readingCardOverlay: readingCard ? getComputedStyle(readingCard, '::before').backgroundImage : '',
+        codeBackground: codeScroller ? getComputedStyle(codeScroller).backgroundColor : '',
+        codeTokenColor: codeToken ? getComputedStyle(codeToken).color : '',
+        tableHeaderBackground: tableHeader ? getComputedStyle(tableHeader).backgroundColor : '',
+        linkColor: link ? getComputedStyle(link).color : '',
       };
     })()`,
       returnByValue: true,
@@ -143,6 +156,13 @@ async function main() {
       notificationDisplay: "none",
       settingsDisplay: "none",
       scrollerOverflow: "visible",
+      shellBackground: "rgb(255, 255, 255)",
+      readingCardBackground: "rgb(255, 255, 255)",
+      readingCardOverlay: "none",
+      codeBackground: "rgb(255, 255, 255)",
+      codeTokenColor: "rgb(0, 0, 0)",
+      tableHeaderBackground: "rgb(255, 255, 255)",
+      linkColor: "rgb(0, 0, 0)",
     });
 
     const preview = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });

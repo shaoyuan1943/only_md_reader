@@ -592,7 +592,7 @@
   - 验证记录：2026-07-16 已新增前端桥接和异步打印请求单元测试，并完成 `cargo check --manifest-path src-tauri\Cargo.toml` 与 release 构建；最终 Windows 系统对话框及实际 PDF 内容待在可点击到导出控件的 release 窗口中复验。
 
 - [x] 16.11 以 Windows WebView2 原生无界面导出取代系统打印。完成时间：2026-07-16
-  - Rust command `export_pdf` 复用当前阅读 WebView 的 `ICoreWebView2_7::PrintToPdf`，使用 A4 纵向、背景打印与关闭页眉页脚的 print settings；删除 `open_pdf_print_dialog`、`ShowPrintUI` 与浏览器 `window.print()` 回退。
+  - Rust command `export_pdf` 复用当前阅读 WebView 的 `ICoreWebView2_7::PrintToPdf`，使用 A4 纵向、关闭 CSS 背景打印与关闭页眉页脚的 print settings；删除 `open_pdf_print_dialog`、`ShowPrintUI` 与浏览器 `window.print()` 回退。
   - 输出至 Markdown 同目录，先输出唯一临时 PDF，再移动为同名 `.pdf`；已存在时按 ` (1)`、` (2)` 递增，避免覆盖。
   - 前端导出状态改为等待原生写入完成后再恢复按钮；浏览器预览环境明确报错，不再伪造打印流程。
   - 验收标准：Rust 单测覆盖同名递增输出路径；前端单测覆盖原生 command、等待写入和无浏览器 fallback；`cargo test --manifest-path src-tauri\Cargo.toml` 通过。
@@ -610,6 +610,11 @@
   - 验收标准：无浏览器预览、系统打印或保存路径窗口；源文件同目录出现非空 PDF；重复导出不覆盖而生成递增文件名；检查多页、可读取、无日期/URL/页码等浏览器页眉页脚。
   - macOS：当前未实现原生无界面输出；必须验证通知显示明确错误，不能以 Windows 结果替代。
   - 验证记录：2026-07-16 使用 `pnpm tauri build --no-bundle --ci` 成功构建 release exe；通过 Windows UI Automation 点击导出按钮，未出现标题含“打印”或“Print”的窗口。源文件同目录生成 `only-md-reader-native-export-qa.pdf` 与重复导出的 `only-md-reader-native-export-qa (1).pdf`，各 21,296 bytes。用 Poppler 与 pypdf 检查均为 2 页、可读取，正文包含 fixture 内容，不含 `tauri.localhost` 或应用标题；渲染两页图片人工核对，无浏览器日期、URL、页码、文件名页眉页脚。
+
+- [x] 16.14 修正 PDF 导出继承阅读器彩色样式的问题。完成时间：2026-07-16
+  - 打印 CSS 统一使用白色背景、黑色文字和灰黑边框；原生 `PrintToPdf` 同时关闭 CSS 背景打印，删除阅读卡片顶部渐变、代码块底色与 Shiki 语法色、表头填充、链接颜色及其他正文背景色。
+  - 验收标准：打印态下阅读容器、代码块和表头均为白色；代码 token、链接和正文均为黑色；阅读卡片顶部伪元素不再绘制渐变。
+  - 验证记录：先扩展 `pnpm qa:pdf-export` 断言并确认旧样式失败，再修复后通过；生成 4 页、193,961 bytes PDF，Poppler 渲染第一页人工核对为纯白黑字样式。
 
 ## 17. 批注阶段，第一版完成后再启动
 

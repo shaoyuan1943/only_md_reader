@@ -59,6 +59,10 @@ fn validate_source_path(source_path: &str) -> Result<PathBuf, String> {
     Ok(source_path)
 }
 
+fn should_print_backgrounds() -> bool {
+    false
+}
+
 #[cfg(windows)]
 async fn export_windows_pdf(
     window: WebviewWindow,
@@ -67,11 +71,11 @@ async fn export_windows_pdf(
     use tokio::sync::oneshot;
     use webview2_com::{
         Microsoft::Web::WebView2::Win32::{
-            ICoreWebView2_7, ICoreWebView2Environment6, COREWEBVIEW2_PRINT_ORIENTATION_PORTRAIT,
+            ICoreWebView2Environment6, ICoreWebView2_7, COREWEBVIEW2_PRINT_ORIENTATION_PORTRAIT,
         },
         PrintToPdfCompletedHandler,
     };
-    use windows_core::{HSTRING, Interface};
+    use windows_core::{Interface, HSTRING};
 
     let temporary_path = temporary_pdf_path(source_path);
     let temporary_path_for_webview = temporary_path.clone();
@@ -90,12 +94,12 @@ async fn export_windows_pdf(
                 settings.SetOrientation(COREWEBVIEW2_PRINT_ORIENTATION_PORTRAIT)?;
                 settings.SetPageWidth(8.267_716_535)?;
                 settings.SetPageHeight(11.692_913_385)?;
-                settings.SetShouldPrintBackgrounds(true)?;
+                settings.SetShouldPrintBackgrounds(should_print_backgrounds())?;
                 settings.SetShouldPrintHeaderAndFooter(false)?;
 
                 let completion_tx_for_callback = Arc::clone(&completion_tx_for_webview);
-                let handler = PrintToPdfCompletedHandler::create(Box::new(
-                    move |completion, succeeded| {
+                let handler =
+                    PrintToPdfCompletedHandler::create(Box::new(move |completion, succeeded| {
                         let result = match completion {
                             Ok(()) if succeeded => Ok(()),
                             Ok(()) => Err("WebView2 未生成 PDF 文件。".to_string()),
@@ -103,8 +107,7 @@ async fn export_windows_pdf(
                         };
                         send_pdf_completion(&completion_tx_for_callback, result);
                         Ok(())
-                    },
-                ));
+                    }));
 
                 webview
                     .controller()
@@ -118,9 +121,10 @@ async fn export_windows_pdf(
             })();
 
             if let Err(error) = result {
-                send_pdf_completion(&completion_tx_for_webview, Err(format!(
-                    "无法启动 WebView2 PDF 导出：{error}"
-                )));
+                send_pdf_completion(
+                    &completion_tx_for_webview,
+                    Err(format!("无法启动 WebView2 PDF 导出：{error}")),
+                );
             }
         })
         .map_err(|error| format!("无法访问当前阅读窗口：{error}"))?;
@@ -142,10 +146,7 @@ async fn export_windows_pdf(
 }
 
 #[cfg(windows)]
-fn send_pdf_completion(
-    sender: &PdfCompletionSender,
-    result: Result<(), String>,
-) {
+fn send_pdf_completion(sender: &PdfCompletionSender, result: Result<(), String>) {
     if let Ok(mut sender) = sender.lock() {
         if let Some(sender) = sender.take() {
             let _ = sender.send(result);
@@ -172,7 +173,10 @@ fn temporary_pdf_path(source_path: &Path) -> PathBuf {
 }
 
 #[cfg(windows)]
-fn move_to_available_pdf_path(temporary_path: &Path, source_path: &Path) -> Result<PathBuf, String> {
+fn move_to_available_pdf_path(
+    temporary_path: &Path,
+    source_path: &Path,
+) -> Result<PathBuf, String> {
     for index in 0..10_000 {
         let candidate = available_pdf_path(source_path, index);
 
@@ -220,16 +224,24 @@ fn available_pdf_path(source_path: &Path, index: u32) -> PathBuf {
 mod tests {
     use std::path::Path;
 
-    use super::available_pdf_path;
+    use super::{available_pdf_path, should_print_backgrounds};
 
     #[test]
     fn creates_the_same_directory_pdf_name_and_incremental_collision_names() {
         let source = Path::new(r"E:\notes\design.markdown");
 
-        assert_eq!(available_pdf_path(source, 0), Path::new(r"E:\notes\design.pdf"));
+        assert_eq!(
+            available_pdf_path(source, 0),
+            Path::new(r"E:\notes\design.pdf")
+        );
         assert_eq!(
             available_pdf_path(source, 2),
             Path::new(r"E:\notes\design (2).pdf")
         );
+    }
+
+    #[test]
+    fn native_pdf_export_omits_web_background_painting() {
+        assert!(!should_print_backgrounds());
     }
 }
