@@ -2,29 +2,33 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { startPdfExport } from "./export-pdf.ts";
 
-void test("prints exactly once after readiness succeeds", async () => {
-  let prints = 0;
+void test("exports exactly once after readiness succeeds", async () => {
+  let exports = 0;
 
   const result = await startPdfExport({
     awaitReadiness: () => Promise.resolve({ kind: "ready" }),
-    print: () => {
-      prints += 1;
+    exportPdf: () => {
+      exports += 1;
+      return Promise.resolve({ outputPath: "E:/notes/readme.pdf" });
     },
   });
 
-  assert.deepEqual(result, { kind: "printed" });
-  assert.equal(prints, 1);
+  assert.deepEqual(result, {
+    kind: "exported",
+    outputPath: "E:/notes/readme.pdf",
+  });
+  assert.equal(exports, 1);
 });
 
-void test("waits for the native system print dialog request before reporting success", async () => {
-  let resolvePrint: (() => void) | undefined;
+void test("waits for the native PDF write before reporting success", async () => {
+  let resolveExport: ((value: { outputPath: string }) => void) | undefined;
   let settled = false;
 
   const result = startPdfExport({
     awaitReadiness: () => Promise.resolve({ kind: "ready" }),
-    print: () =>
-      new Promise<void>((resolve) => {
-        resolvePrint = resolve;
+    exportPdf: () =>
+      new Promise<{ outputPath: string }>((resolve) => {
+        resolveExport = resolve;
       }),
   }).then((value) => {
     settled = true;
@@ -35,34 +39,38 @@ void test("waits for the native system print dialog request before reporting suc
   await Promise.resolve();
 
   assert.equal(settled, false);
-  resolvePrint?.();
-  assert.deepEqual(await result, { kind: "printed" });
+  resolveExport?.({ outputPath: "E:/notes/readme.pdf" });
+  assert.deepEqual(await result, {
+    kind: "exported",
+    outputPath: "E:/notes/readme.pdf",
+  });
 });
 
-void test("does not print when export resources time out", async () => {
-  let prints = 0;
+void test("does not export when export resources time out", async () => {
+  let exports = 0;
 
   const result = await startPdfExport({
     awaitReadiness: () => Promise.resolve({ kind: "timeout" }),
-    print: () => {
-      prints += 1;
+    exportPdf: () => {
+      exports += 1;
+      return Promise.resolve({ outputPath: "E:/notes/readme.pdf" });
     },
   });
 
   assert.deepEqual(result, { kind: "resource-timeout" });
-  assert.equal(prints, 0);
+  assert.equal(exports, 0);
 });
 
-void test("returns the print failure message when the native print dialog cannot open", async () => {
+void test("returns the native export failure message", async () => {
   const result = await startPdfExport({
     awaitReadiness: () => Promise.resolve({ kind: "ready" }),
-    print: () => {
-      throw new Error("native print unavailable");
+    exportPdf: () => {
+      throw new Error("native PDF unavailable");
     },
   });
 
   assert.deepEqual(result, {
-    kind: "print-failed",
-    message: "native print unavailable",
+    kind: "export-failed",
+    message: "native PDF unavailable",
   });
 });

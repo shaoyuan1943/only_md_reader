@@ -85,23 +85,53 @@ async function main() {
     })()`,
       returnByValue: true,
     });
-    await delay(50);
-    const printResult = await cdp.send("Runtime.evaluate", {
-      expression: "window.__qaPdfPrintCalls",
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.reader-preview-notification[data-kind=\"error\"]')?.textContent?.includes('PDF 导出只能在桌面应用中使用。') === true",
+    );
+    const notification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const notification = document.querySelector('.reader-preview-notification[data-kind="error"]');
+        const notificationStack = document.querySelector('.reader-preview-notifications');
+        const readingDocument = document.querySelector('.markdown-rendered-document');
+        const shell = document.querySelector('.reader-preview-shell');
+        const style = notification ? getComputedStyle(notification) : null;
+        const stackStyle = notificationStack ? getComputedStyle(notificationStack) : null;
+        return {
+          background: style?.backgroundColor,
+          borderRadius: style?.borderRadius,
+          fontFamily: style?.fontFamily,
+          stackBottom: stackStyle?.bottom,
+          stackLeft: stackStyle?.left,
+          readingFontFamily: readingDocument ? getComputedStyle(readingDocument).fontFamily : '',
+          printCalls: window.__qaPdfPrintCalls,
+          shellBackground: shell ? getComputedStyle(shell).backgroundColor : '',
+        };
+      })()`,
       returnByValue: true,
     });
     assert.equal(interaction.result.value.shortcutPrevented, true);
-    assert.equal(printResult.result.value, 1);
+    assert.equal(notification.result.value.printCalls, 0);
+    assert.equal(notification.result.value.stackLeft, "24px");
+    assert.equal(notification.result.value.stackBottom, "24px");
+    assert.equal(notification.result.value.borderRadius, "14px");
+    assert.equal(notification.result.value.background, notification.result.value.shellBackground);
+    assert.equal(
+      notification.result.value.fontFamily,
+      notification.result.value.readingFontFamily,
+    );
 
     await cdp.send("Emulation.setEmulatedMedia", { media: "print" });
 
     const printLayout = await cdp.send("Runtime.evaluate", {
       expression: `(() => {
       const documentRoot = document.querySelector('.markdown-rendered-document');
+      const notificationStack = document.querySelector('.reader-preview-notifications');
       const settings = document.querySelector('.reader-preview-settings-button');
       const scroller = document.querySelector('.reader-preview-scroll');
       return {
         documentOverflow: documentRoot ? getComputedStyle(documentRoot).overflow : '',
+        notificationDisplay: notificationStack ? getComputedStyle(notificationStack).display : '',
         settingsDisplay: settings ? getComputedStyle(settings).display : '',
         scrollerOverflow: scroller ? getComputedStyle(scroller).overflow : '',
       };
@@ -110,6 +140,7 @@ async function main() {
     });
     assert.deepEqual(printLayout.result.value, {
       documentOverflow: "visible",
+      notificationDisplay: "none",
       settingsDisplay: "none",
       scrollerOverflow: "visible",
     });

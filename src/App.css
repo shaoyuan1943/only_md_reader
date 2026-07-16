@@ -1061,20 +1061,86 @@ body,
   height: 16px;
 }
 
-.reader-preview-pdf-export-error {
-  position: absolute;
-  right: 28px;
-  bottom: 122px;
-  z-index: 4;
-  max-width: 300px;
+.reader-preview-notifications {
+  position: fixed;
+  z-index: 30;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  max-width: min(360px, calc(100vw - 48px));
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.reader-preview-notification {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
   margin: 0;
-  border-left: 4px solid var(--button-danger-bg);
-  border-radius: 0 12px 12px 0;
-  background: color-mix(in srgb, var(--button-danger-bg) 12%, var(--surface-bg));
+  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  border-radius: 14px;
+  background: var(--app-bg);
+  color: var(--text-primary);
+  padding: 11px 14px;
+  box-shadow:
+    0 22px 46px color-mix(in srgb, #000 34%, transparent),
+    0 8px 20px color-mix(in srgb, var(--accent) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--surface-bg) 72%, transparent);
+  font-family: var(
+    --reader-body-font-family,
+    "Maple Mono NF CN",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif
+  );
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  animation: reader-notification-enter 0.24s ease-out both;
+}
+
+.reader-preview-notification[data-kind="error"] {
+  border-color: color-mix(in srgb, var(--button-danger-bg) 60%, var(--border-soft));
   color: var(--button-danger-bg);
-  padding: 9px 12px;
-  font-size: 12px;
-  line-height: 1.5;
+}
+
+.reader-preview-notification[data-closing="true"] {
+  animation: reader-notification-exit 0.22s ease-in both;
+}
+
+@keyframes reader-notification-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes reader-notification-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-preview-notification,
+  .reader-preview-notification[data-closing="true"] {
+    animation-duration: 0.01ms;
+  }
 }
 
 .reader-preview-settings-button {

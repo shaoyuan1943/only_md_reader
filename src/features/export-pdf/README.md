@@ -1,14 +1,15 @@
 # PDF 导出
 
-PDF 导出 V1 只允许用户点击阅读窗口右下角、设置按钮上方的“导出为PDF文档”按钮。模块先等待字体、Markdown 图片和两个布局帧稳定，再调用浏览器 `window.print()` 打开系统打印界面。
+PDF 导出 V1 只允许用户点击阅读窗口右下角、设置按钮上方的“导出为PDF文档”按钮。模块先等待字体、Markdown 图片和两个布局帧稳定，再请求 Tauri 原生 command 直接写出 PDF；不会打开浏览器预览或系统打印窗口。
 
 - 不支持 `Ctrl+P` / `Cmd+P` 触发导出；组件会拦截该快捷键。
-- 资源等待上限为 10 秒；尚未加载完成的图片会中止当前导出并显示错误。
+- Windows 使用当前 WebView2 的 `PrintToPdf`，固定 A4、浅色打印 CSS、背景打印开启且关闭浏览器页眉页脚。
+- 输出至 Markdown 源文件同目录、同名 `.pdf`；若已存在，自动使用 ` (1)`、` (2)` 等递增文件名，绝不覆盖已有 PDF。
+- 资源等待上限为 10 秒；尚未加载完成的图片会中止当前导出并以应用内错误通知说明原因。
 - 已进入 Markdown 图片失败占位状态的图片不会阻断导出。
-- V1 不直接选择保存路径、静默生成文件或调用 Rust PDF API。
+- 成功提示 3 秒后从右向左关闭；错误提示显示在左下角通知栈，最新一条位于最下方，最多三个活跃错误。
+- macOS 目前不会回退到打印窗口；原生无界面输出尚未实现时将返回明确错误通知。
 
 验证：
 
-`pnpm qa:pdf-export` 使用本地 Vite QA 页面和本机 Chromium 的 headless print-to-PDF 生成多页 A4 PDF，并检查产物非空且至少两页。
-
-在 Windows 的 Tauri 运行时，导出桥接调用 WebView2 原生系统打印对话框，避免浏览器预览自动添加日期、标题、URL 和页码；浏览器 QA 与非 Windows 运行时回退至 `window.print()`。
+`pnpm qa:pdf-export` 使用本地 Vite QA 页面和本机 Chromium 的 headless `printToPDF` 验证与原生导出共用的打印 CSS：生成多页 A4 PDF、检查正文布局，并断言浏览器预览 API 没有被导出按钮调用。Windows 原生路径由 Rust 单测、release 构建和实机导出另行验证。

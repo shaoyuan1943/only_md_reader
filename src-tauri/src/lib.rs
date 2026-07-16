@@ -36,7 +36,7 @@ pub fn run() {
             settings::reset_reader_settings,
             settings::update_reader_settings,
             settings_window::open_settings_window,
-            pdf_export::open_pdf_print_dialog,
+            pdf_export::export_pdf,
             window_state::get_window_state,
             window_state::save_window_state,
         ])

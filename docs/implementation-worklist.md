@@ -531,7 +531,9 @@
 - [ ] 15.10 第一版不包含批注功能。完成时间：
   - 验收标准：不引入源文件写回、选区改写、批注保存冲突等复杂度。
 
-## 16. PDF 导出 V1：系统打印
+## 16. PDF 导出 V1：原生无界面直出
+
+> 16.1–16.10 是已废弃的系统打印路线记录，仅保留问题背景与历史验证；当前产品边界以 16.11 起、`docs/technical-architecture.md` 第 9.1 节及 `docs/superpowers/plans/2026-07-16-pdf-export-native-direct-implementation.md` 为准。
 
 - [x] 16.1 冻结 PDF 导出 V1 的产品与技术边界。完成时间：2026-07-16
   - 已确认：仅通过阅读窗口的按钮触发；默认 A4；固定浅色打印主题；不显示文件名；不做自定义页眉页脚；不提供导出快捷键。
@@ -588,6 +590,26 @@
   - 实现：Windows 调用 WebView2 `ICoreWebView2_16::ShowPrintUI(COREWEBVIEW2_PRINT_DIALOG_KIND_SYSTEM)` 打开紧凑系统对话框；非 Windows 保留 `window.print()` 回退。导出流程等待原生请求完成后才恢复按钮状态。
   - 验收标准：Windows 不再进入浏览器预览，用户仍可在系统对话框选择 PDF 打印机，PDF 不含上述浏览器自动页眉页脚。
   - 验证记录：2026-07-16 已新增前端桥接和异步打印请求单元测试，并完成 `cargo check --manifest-path src-tauri\Cargo.toml` 与 release 构建；最终 Windows 系统对话框及实际 PDF 内容待在可点击到导出控件的 release 窗口中复验。
+
+- [x] 16.11 以 Windows WebView2 原生无界面导出取代系统打印。完成时间：2026-07-16
+  - Rust command `export_pdf` 复用当前阅读 WebView 的 `ICoreWebView2_7::PrintToPdf`，使用 A4 纵向、背景打印与关闭页眉页脚的 print settings；删除 `open_pdf_print_dialog`、`ShowPrintUI` 与浏览器 `window.print()` 回退。
+  - 输出至 Markdown 同目录，先输出唯一临时 PDF，再移动为同名 `.pdf`；已存在时按 ` (1)`、` (2)` 递增，避免覆盖。
+  - 前端导出状态改为等待原生写入完成后再恢复按钮；浏览器预览环境明确报错，不再伪造打印流程。
+  - 验收标准：Rust 单测覆盖同名递增输出路径；前端单测覆盖原生 command、等待写入和无浏览器 fallback；`cargo test --manifest-path src-tauri\Cargo.toml` 通过。
+  - 验证记录：2026-07-16 `cargo test --manifest-path src-tauri\Cargo.toml` 27/27 通过；Windows 实机导出见 16.13。
+
+- [x] 16.12 实现阅读窗口左下角通知栈。完成时间：2026-07-16
+  - 通知背景使用应用背景、圆角和强阴影；错误字体继承阅读字体。通知从左至右出现、从右至左关闭。
+  - 通知数组按旧到新顺序渲染，使最新通知固定在最下方、旧通知向上堆叠；成功通知 3 秒后自动关闭。
+  - 活跃错误最多三条；第四条错误出现时最旧错误先进入关闭动画。错误通知不提供重试或操作按钮，只显示失败原因。
+  - 验收标准：通知 reducer 单测覆盖最新位置、错误上限和最旧关闭；PDF QA 覆盖左下角位置、圆角、应用背景、阅读字体、打印态隐藏与导出按钮不调用浏览器 `window.print()`。
+  - 验证记录：2026-07-16 `pnpm test` 173/173 通过，`pnpm qa:pdf-export` 通过并生成 4 页、195596 bytes 的打印 CSS QA PDF。
+
+- [x] 16.13 Windows 实机无界面导出与 release 构建。完成时间：2026-07-16
+  - 使用 `pnpm tauri build --no-bundle --ci` 构建新的 release exe；打开包含中文、长文、表格、长代码、公式和本地图片的 fixture，点击导出按钮。
+  - 验收标准：无浏览器预览、系统打印或保存路径窗口；源文件同目录出现非空 PDF；重复导出不覆盖而生成递增文件名；检查多页、可读取、无日期/URL/页码等浏览器页眉页脚。
+  - macOS：当前未实现原生无界面输出；必须验证通知显示明确错误，不能以 Windows 结果替代。
+  - 验证记录：2026-07-16 使用 `pnpm tauri build --no-bundle --ci` 成功构建 release exe；通过 Windows UI Automation 点击导出按钮，未出现标题含“打印”或“Print”的窗口。源文件同目录生成 `only-md-reader-native-export-qa.pdf` 与重复导出的 `only-md-reader-native-export-qa (1).pdf`，各 21,296 bytes。用 Poppler 与 pypdf 检查均为 2 页、可读取，正文包含 fixture 内容，不含 `tauri.localhost` 或应用标题；渲染两页图片人工核对，无浏览器日期、URL、页码、文件名页眉页脚。
 
 ## 17. 批注阶段，第一版完成后再启动
 

@@ -49,6 +49,12 @@ import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
 import { startPdfExport } from "../export-pdf/export-pdf.ts";
 import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
 import { createPdfExportApi } from "../export-pdf/pdf-export-api.ts";
+import {
+  addReaderNotification,
+  closeReaderNotification as closeReaderNotificationState,
+  removeReaderNotification,
+  type ReaderNotification,
+} from "./reader-notifications.ts";
 
 const OUTLINE_VIEWPORT_OFFSET = 56;
 const OUTLINE_ACTIVE_ITEM_MARGIN = 24;
@@ -57,6 +63,8 @@ const COPY_BUBBLE_INLINE_OFFSET_PX = 10;
 const COPY_BUBBLE_BLOCK_OFFSET_PX = 8;
 const SELECTION_COPY_BUTTON_SIZE_PX = 32;
 const TEXT_SELECTION_DRAG_THRESHOLD_PX = 10;
+const PDF_EXPORT_SUCCESS_NOTIFICATION_DURATION_MS = 3_000;
+const READER_NOTIFICATION_EXIT_DURATION_MS = 220;
 const pdfExportApi = createPdfExportApi();
 
 type ReaderPreviewWindowProps = {
@@ -145,8 +153,13 @@ export function ReaderPreviewWindow({
     useState<SelectionCopyBubbleState | null>(null);
   const [settingsOpenError, setSettingsOpenError] = useState<string | null>(null);
   const [isPdfExportPreparing, setIsPdfExportPreparing] = useState(false);
-  const [pdfExportError, setPdfExportError] = useState<string | null>(null);
+  const [readerNotifications, setReaderNotifications] = useState<ReaderNotification[]>(
+    [],
+  );
   const lockedOutlineJumpIdRef = useRef<string | null>(null);
+  const readerNotificationIdRef = useRef(0);
+  const readerNotificationExitTimersRef = useRef(new Map<string, number>());
+  const readerNotificationSuccessTimersRef = useRef(new Map<string, number>());
   const outlinePointerIntentRef = useRef<{
     isSelecting: boolean;
     startX: number;
@@ -849,6 +862,67 @@ export function ReaderPreviewWindow({
     return Boolean(selection && !selection.isCollapsed && selection.toString().trim());
   };
 
+  const closeReaderNotification = useCallback((id: string) => {
+    setReaderNotifications((current) => closeReaderNotificationState(current, id));
+  }, []);
+
+  const showReaderNotification = useCallback(
+    (kind: ReaderNotification["kind"], message: string) => {
+      const id = `reader-notification-${Date.now()}-${readerNotificationIdRef.current}`;
+      readerNotificationIdRef.current += 1;
+      const notification: ReaderNotification = {
+        id,
+        kind,
+        message,
+        isClosing: false,
+      };
+
+      setReaderNotifications((current) => addReaderNotification(current, notification));
+
+      if (kind === "success") {
+        const timer = window.setTimeout(() => {
+          readerNotificationSuccessTimersRef.current.delete(id);
+          closeReaderNotification(id);
+        }, PDF_EXPORT_SUCCESS_NOTIFICATION_DURATION_MS);
+        readerNotificationSuccessTimersRef.current.set(id, timer);
+      }
+    },
+    [closeReaderNotification],
+  );
+
+  useEffect(() => {
+    for (const notification of readerNotifications) {
+      if (
+        !notification.isClosing ||
+        readerNotificationExitTimersRef.current.has(notification.id)
+      ) {
+        continue;
+      }
+
+      const timer = window.setTimeout(() => {
+        readerNotificationExitTimersRef.current.delete(notification.id);
+        setReaderNotifications((current) =>
+          removeReaderNotification(current, notification.id),
+        );
+      }, READER_NOTIFICATION_EXIT_DURATION_MS);
+      readerNotificationExitTimersRef.current.set(notification.id, timer);
+    }
+  }, [readerNotifications]);
+
+  useEffect(() => {
+    const exitTimers = readerNotificationExitTimersRef.current;
+    const successTimers = readerNotificationSuccessTimersRef.current;
+
+    return () => {
+      for (const timer of exitTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      for (const timer of successTimers.values()) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, []);
+
   async function handlePdfExport() {
     const root = readingScrollerRef.current;
 
@@ -856,7 +930,6 @@ export function ReaderPreviewWindow({
       return;
     }
 
-    setPdfExportError(null);
     setIsPdfExportPreparing(true);
 
     try {
@@ -866,18 +939,21 @@ export function ReaderPreviewWindow({
             document,
             root,
           }),
-        print: () => pdfExportApi.openPrintDialog(),
+        exportPdf: () => pdfExportApi.exportPdf(file.path),
       });
 
       if (result.kind === "resource-timeout") {
-        setPdfExportError(
-          "图片尚未加载完成，暂未开始导出。请检查图片路径或网络后重试。",
+        showReaderNotification(
+          "error",
+          "图片尚未加载完成，暂未导出。请检查图片路径或网络后重试。",
         );
-      } else if (result.kind === "print-failed") {
-        setPdfExportError(`无法打开系统打印窗口：${result.message}`);
+      } else if (result.kind === "export-failed") {
+        showReaderNotification("error", result.message);
+      } else {
+        showReaderNotification("success", "PDF 已导出。");
       }
     } catch (error) {
-      setPdfExportError(`无法准备 PDF 导出：${getErrorMessage(error)}`);
+      showReaderNotification("error", `无法准备 PDF 导出：${getErrorMessage(error)}`);
     } finally {
       setIsPdfExportPreparing(false);
     }
@@ -1053,12 +1129,6 @@ export function ReaderPreviewWindow({
           >
             <PdfExportIcon />
           </button>
-          {pdfExportError ? (
-            <p className="reader-preview-pdf-export-error" role="alert">
-              {pdfExportError}
-            </p>
-          ) : null}
-
           <button
             className="reader-preview-settings-button"
             type="button"
@@ -1086,6 +1156,7 @@ export function ReaderPreviewWindow({
           {isOutlineHidden ? <RightArrowIcon /> : <LeftArrowIcon />}
         </button>
       </div>
+      <ReaderNotificationStack notifications={readerNotifications} />
       {selectionCopyBubble ? (
         <button
           className="reader-preview-selection-copy-button"
@@ -1107,6 +1178,32 @@ export function ReaderPreviewWindow({
         </button>
       ) : null}
     </main>
+  );
+}
+
+function ReaderNotificationStack({
+  notifications,
+}: {
+  notifications: ReaderNotification[];
+}) {
+  if (notifications.length === 0) {
+    return null;
+  }
+
+  return (
+    <aside className="reader-preview-notifications" aria-label="应用通知">
+      {notifications.map((notification) => (
+        <p
+          className="reader-preview-notification"
+          data-closing={notification.isClosing}
+          data-kind={notification.kind}
+          key={notification.id}
+          role={notification.kind === "error" ? "alert" : "status"}
+        >
+          {notification.message}
+        </p>
+      ))}
+    </aside>
   );
 }
 

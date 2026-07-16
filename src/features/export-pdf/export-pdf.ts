@@ -1,18 +1,18 @@
 import type { PdfExportReadiness } from "./export-readiness.ts";
 
 export type PdfExportResult =
-  | { kind: "printed" }
+  | { kind: "exported"; outputPath: string }
   | { kind: "resource-timeout" }
-  | { kind: "print-failed"; message: string };
+  | { kind: "export-failed"; message: string };
 
 type StartPdfExportOptions = {
   awaitReadiness(this: void): Promise<PdfExportReadiness>;
-  print(this: void): Promise<void> | void;
+  exportPdf(this: void): Promise<{ outputPath: string }>;
 };
 
 export async function startPdfExport({
   awaitReadiness,
-  print,
+  exportPdf,
 }: StartPdfExportOptions): Promise<PdfExportResult> {
   const readiness = await awaitReadiness();
 
@@ -21,11 +21,11 @@ export async function startPdfExport({
   }
 
   try {
-    await print();
-    return { kind: "printed" };
+    const output = await exportPdf();
+    return { kind: "exported", outputPath: output.outputPath };
   } catch (error) {
     return {
-      kind: "print-failed",
+      kind: "export-failed",
       message: getPdfExportErrorMessage(error),
     };
   }
