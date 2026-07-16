@@ -31,3 +31,6 @@ tools/verify
 *.njsproj
 *.sln
 *.sw?
+
+# Local Git worktrees
+.worktrees/
