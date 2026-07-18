@@ -122,6 +122,7 @@ UI 原型在 /docs/ui 目录下，其中：
 pnpm qa:settings-ui
 pnpm qa:reader-ui
 pnpm qa:markdown-performance
+pnpm qa:pdf-export
 pnpm qa:screenshots
 ```
 
@@ -136,6 +137,7 @@ pnpm qa:screenshots
 - 设置窗口和相关 UI 交互修改：跑 `pnpm qa:settings-ui`，再按影响范围补 `pnpm test` / `pnpm lint` / `pnpm build`。
 - 阅读窗口、图片失败状态、滚动、大纲或小窗口 / 高 DPI 可视行为修改：跑 `pnpm qa:reader-ui`，再按影响范围补 `pnpm test` / `pnpm lint` / `pnpm build`。
 - Markdown 渲染性能和前端加载体积相关修改：跑 `pnpm qa:markdown-performance` 和 `pnpm build`。
+- PDF 导出、打印媒体 CSS、分页或导出按钮修改：跑 `pnpm qa:pdf-export`、`pnpm qa:reader-ui` 和 `pnpm build`。
 - UI 原型截图或视觉验收资料更新：跑 `pnpm qa:screenshots`，确认截图输出到 `output/playwright/`。
 - 打包或 Tauri 原生窗口行为修改：跑相关 Rust/前端测试后，再按需要跑 `pnpm tauri build`。
 - 后续每次修改代码后，默认构建新的测试 exe，且默认不产出安装包；使用 `pnpm tauri build --no-bundle --ci`，除非用户明确要求 MSI/NSIS 安装包。

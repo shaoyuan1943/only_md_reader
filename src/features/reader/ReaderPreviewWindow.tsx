@@ -46,6 +46,16 @@ import { getRestoreTarget } from "./window-state.ts";
 import type { WindowStateApi } from "./window-state-api.ts";
 import { createWindowStateApi } from "./window-state-api.ts";
 import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
+import { startPdfExport } from "../export-pdf/export-pdf.ts";
+import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
+import { createPdfExportApi } from "../export-pdf/pdf-export-api.ts";
+import { preparePdfPrintLayout } from "../export-pdf/pdf-local-fit.ts";
+import {
+  addReaderNotification,
+  closeReaderNotification as closeReaderNotificationState,
+  removeReaderNotification,
+  type ReaderNotification,
+} from "./reader-notifications.ts";
 
 const OUTLINE_VIEWPORT_OFFSET = 56;
 const OUTLINE_ACTIVE_ITEM_MARGIN = 24;
@@ -54,6 +64,9 @@ const COPY_BUBBLE_INLINE_OFFSET_PX = 10;
 const COPY_BUBBLE_BLOCK_OFFSET_PX = 8;
 const SELECTION_COPY_BUTTON_SIZE_PX = 32;
 const TEXT_SELECTION_DRAG_THRESHOLD_PX = 10;
+const PDF_EXPORT_SUCCESS_NOTIFICATION_DURATION_MS = 3_000;
+const READER_NOTIFICATION_EXIT_DURATION_MS = 220;
+const pdfExportApi = createPdfExportApi();
 
 type ReaderPreviewWindowProps = {
   file: OpenedMarkdownFile;
@@ -140,7 +153,14 @@ export function ReaderPreviewWindow({
   const [selectionCopyBubble, setSelectionCopyBubble] =
     useState<SelectionCopyBubbleState | null>(null);
   const [settingsOpenError, setSettingsOpenError] = useState<string | null>(null);
+  const [isPdfExportPreparing, setIsPdfExportPreparing] = useState(false);
+  const [readerNotifications, setReaderNotifications] = useState<ReaderNotification[]>(
+    [],
+  );
   const lockedOutlineJumpIdRef = useRef<string | null>(null);
+  const readerNotificationIdRef = useRef(0);
+  const readerNotificationExitTimersRef = useRef(new Map<string, number>());
+  const readerNotificationSuccessTimersRef = useRef(new Map<string, number>());
   const outlinePointerIntentRef = useRef<{
     isSelecting: boolean;
     startX: number;
@@ -626,6 +646,24 @@ export function ReaderPreviewWindow({
     [finishTextSelection],
   );
 
+  useEffect(() => {
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (
+        !event.altKey &&
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "p"
+      ) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener("keydown", handleDocumentKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+    };
+  }, []);
+
   const handleShellKeyUp = useCallback(() => {
     handleSelectionChange();
   }, [handleSelectionChange]);
@@ -825,6 +863,109 @@ export function ReaderPreviewWindow({
     return Boolean(selection && !selection.isCollapsed && selection.toString().trim());
   };
 
+  const closeReaderNotification = useCallback((id: string) => {
+    setReaderNotifications((current) => closeReaderNotificationState(current, id));
+  }, []);
+
+  const showReaderNotification = useCallback(
+    (kind: ReaderNotification["kind"], message: string) => {
+      const id = `reader-notification-${Date.now()}-${readerNotificationIdRef.current}`;
+      readerNotificationIdRef.current += 1;
+      const notification: ReaderNotification = {
+        id,
+        kind,
+        message,
+        isClosing: false,
+      };
+
+      setReaderNotifications((current) => addReaderNotification(current, notification));
+
+      if (kind === "success") {
+        const timer = window.setTimeout(() => {
+          readerNotificationSuccessTimersRef.current.delete(id);
+          closeReaderNotification(id);
+        }, PDF_EXPORT_SUCCESS_NOTIFICATION_DURATION_MS);
+        readerNotificationSuccessTimersRef.current.set(id, timer);
+      }
+    },
+    [closeReaderNotification],
+  );
+
+  useEffect(() => {
+    for (const notification of readerNotifications) {
+      if (
+        !notification.isClosing ||
+        readerNotificationExitTimersRef.current.has(notification.id)
+      ) {
+        continue;
+      }
+
+      const timer = window.setTimeout(() => {
+        readerNotificationExitTimersRef.current.delete(notification.id);
+        setReaderNotifications((current) =>
+          removeReaderNotification(current, notification.id),
+        );
+      }, READER_NOTIFICATION_EXIT_DURATION_MS);
+      readerNotificationExitTimersRef.current.set(notification.id, timer);
+    }
+  }, [readerNotifications]);
+
+  useEffect(() => {
+    const exitTimers = readerNotificationExitTimersRef.current;
+    const successTimers = readerNotificationSuccessTimersRef.current;
+
+    return () => {
+      for (const timer of exitTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      for (const timer of successTimers.values()) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, []);
+
+  async function handlePdfExport() {
+    const root = readingScrollerRef.current;
+
+    if (!root || isRendering || isPdfExportPreparing) {
+      return;
+    }
+
+    setIsPdfExportPreparing(true);
+
+    try {
+      const { pdfAllowGlobalScaling } = await settingsApi.getReaderSettings();
+      const result = await startPdfExport({
+        awaitReadiness: () =>
+          waitForPdfExportReadiness({
+            document,
+            root,
+          }),
+        prepareLayout: () =>
+          preparePdfPrintLayout({
+            root,
+            allowGlobalScaling: pdfAllowGlobalScaling,
+          }),
+        exportPdf: () => pdfExportApi.exportPdf(file.path),
+      });
+
+      if (result.kind === "resource-timeout") {
+        showReaderNotification(
+          "error",
+          "图片尚未加载完成，暂未导出。请检查图片路径或网络后重试。",
+        );
+      } else if (result.kind === "export-failed") {
+        showReaderNotification("error", result.message);
+      } else {
+        showReaderNotification("success", "PDF 已导出。");
+      }
+    } catch (error) {
+      showReaderNotification("error", `无法准备 PDF 导出：${getErrorMessage(error)}`);
+    } finally {
+      setIsPdfExportPreparing(false);
+    }
+  }
+
   async function handleOpenSettings() {
     try {
       setSettingsOpenError(null);
@@ -985,6 +1126,17 @@ export function ReaderPreviewWindow({
           </article>
 
           <button
+            className="reader-preview-pdf-export-button"
+            type="button"
+            aria-label={preview.pdfExportLabel}
+            aria-busy={isPdfExportPreparing}
+            title={preview.pdfExportLabel}
+            disabled={isRendering || isPdfExportPreparing}
+            onClick={() => void handlePdfExport()}
+          >
+            <PdfExportIcon />
+          </button>
+          <button
             className="reader-preview-settings-button"
             type="button"
             aria-label={preview.settingsLabel}
@@ -1011,6 +1163,7 @@ export function ReaderPreviewWindow({
           {isOutlineHidden ? <RightArrowIcon /> : <LeftArrowIcon />}
         </button>
       </div>
+      <ReaderNotificationStack notifications={readerNotifications} />
       {selectionCopyBubble ? (
         <button
           className="reader-preview-selection-copy-button"
@@ -1035,6 +1188,32 @@ export function ReaderPreviewWindow({
   );
 }
 
+function ReaderNotificationStack({
+  notifications,
+}: {
+  notifications: ReaderNotification[];
+}) {
+  if (notifications.length === 0) {
+    return null;
+  }
+
+  return (
+    <aside className="reader-preview-notifications" aria-label="应用通知">
+      {notifications.map((notification) => (
+        <p
+          className="reader-preview-notification"
+          data-closing={notification.isClosing}
+          data-kind={notification.kind}
+          key={notification.id}
+          role={notification.kind === "error" ? "alert" : "status"}
+        >
+          {notification.message}
+        </p>
+      ))}
+    </aside>
+  );
+}
+
 type ScrollablePanelProps = {
   as: "aside" | "section";
   children: ReactNode;
@@ -1049,12 +1228,14 @@ type ScrollablePanelProps = {
 };
 
 type ScrollChromeState = ScrollChromeMetrics & {
+  hasScrollBelow: boolean;
   isDragging: boolean;
   isVisible: boolean;
 };
 
 const defaultScrollChromeState: ScrollChromeState = {
   canScroll: false,
+  hasScrollBelow: false,
   isDragging: false,
   isVisible: false,
   maxScrollTop: 0,
@@ -1108,6 +1289,8 @@ function ScrollablePanel({
 
     setChromeState((current) => ({
       ...metrics,
+      hasScrollBelow:
+        metrics.canScroll && scroller.scrollTop < metrics.maxScrollTop - 1,
       isDragging: current.isDragging,
       isVisible: current.isVisible && metrics.canScroll,
     }));
@@ -1247,6 +1430,7 @@ function ScrollablePanel({
       data-hidden={hiddenFromView}
       data-scrollbar-visible={chromeState.isVisible}
       data-scrolled-from-top={chromeState.thumbTop > 0}
+      data-has-scroll-below={chromeState.hasScrollBelow}
       data-dragging-scrollbar={chromeState.isDragging}
     >
       <div
@@ -2082,6 +2266,17 @@ function CopyIcon() {
       />
       <path
         d="M603.52 423.68H192a32 32 0 0 1-32-32 32 32 0 0 1 32-32h411.52a32 32 0 0 1 32 32 32 32 0 0 1-32 32zM603.52 617.6H192a32 32 0 0 1 0-64h411.52a32 32 0 0 1 0 64zM603.52 810.88H192a32 32 0 0 1-32-32 32 32 0 0 1 32-32h411.52a32 32 0 0 1 32 32 32 32 0 0 1-32 32z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function PdfExportIcon() {
+  return (
+    <svg viewBox="0 0 1024 1024" aria-hidden="true">
+      <path
+        d="M945.347 615.848c-19.88-23.607-60.647-35.084-124.629-35.084-37.19 0-82.116 3.928-133.603 11.676C546.488 489.619 507.222 376.188 507.222 376.188s24.018-61.146 25.542-161.012c0.964-63.13-8.813-105.715-34.07-130.455-9.818-9.617-26.287-15.831-41.957-15.831-12.23 0-23.682 3.592-33.066 10.459-73.106 53.494 6.71 305.676 8.846 312.394-34.5 84.906-77.96 174.858-122.691 253.899-14.534 25.68-13.117 23.672-25.37 44.555 0 0-123.713 58.109-183.721 129.479-33.905 40.328-38.191 67.553-36.391 88.301l0.045 0.453c2.856 24.432 34.133 46.68 65.62 46.68 1.306 0 2.62-0.039 3.907-0.119 32.001-1.975 67.069-24.713 107.207-69.516 26.493-29.576 60.922-81.609 102.377-154.715 118.939-33.834 223.61-57.932 311.331-71.676 64.329 34.619 160.036 73.824 225.187 73.824 21.854 0 39.435-4.455 52.252-13.242 15.336-10.508 21.849-23.604 25.896-47.85C962.215 647.572 956.58 629.186 945.347 615.848zM806.399 645.367c57.181 0 88.141 8.314 104.046 15.289 4.905 2.152 8.473 4.227 11.005 5.961-4.483 2.863-13.298 6.479-29.23 6.479-26.418 0-61.092-9.225-103.384-27.479C794.852 645.451 800.709 645.367 806.399 645.367zM467.511 119.504c0.04-0.075 0.084-0.153 0.134-0.234 12.266 6.459 17.99 51.818 16.84 78.119-1.543 35.295-1.909 48.933-8.106 70.617C459.581 222.799 458.389 141.54 467.511 119.504zM471.997 477.314c28.844 46.842 71.622 97.577 112.835 133.801-80.44 17.002-157.675 38.313-205.733 54.898C430.612 578.049 468.615 486.032 471.997 477.314zM140.913 881.24c6.979-11.625 26.047-34.15 74.404-77.707-33.146 49.852-57.493 76.998-82.194 93.93C135.168 892.125 137.741 886.525 140.913 881.24z"
         fill="currentColor"
       />
     </svg>

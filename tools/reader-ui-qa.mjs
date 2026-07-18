@@ -195,6 +195,26 @@ async function main() {
         "outline h1-h6 rows should keep distinct increasing visual depth",
       );
 
+      await delay(250);
+      const initialFadeState = await collectScrollFadeState(cdp);
+      assertScrollFadeState(initialFadeState, {
+        position: "start",
+      });
+
+      await setPanelScrollRatio(cdp, 0.5);
+      const middleFadeState = await collectScrollFadeState(cdp);
+      assertScrollFadeState(middleFadeState, {
+        position: "middle",
+      });
+
+      await setPanelScrollRatio(cdp, 1);
+      const endFadeState = await collectScrollFadeState(cdp);
+      assertScrollFadeState(endFadeState, {
+        position: "end",
+      });
+
+      await setPanelScrollRatio(cdp, 0);
+
       await evaluate(cdp, () => {
         const image = document.querySelector("img.markdown-image");
         image?.dispatchEvent(new Event("error", { bubbles: false }));
@@ -433,7 +453,8 @@ async function main() {
       const filePathCopy = await evaluate(cdp, () => ({
         copiedText: window.__qaClipboardWrites?.at(-1) ?? "",
         pathText:
-          document.querySelector(".reader-preview-file-path")?.textContent?.trim() ?? "",
+          document.querySelector(".reader-preview-file-path")?.textContent?.trim() ??
+          "",
       }));
       assert.equal(filePathCopy.copiedText, filePathCopy.pathText);
 
@@ -968,8 +989,14 @@ async function main() {
         screenshotPath,
         initialLayout,
         interaction,
+        scrollFadeState: middleFadeState,
       });
     }
+
+    assert.ok(
+      results.some((result) => result.scrollFadeState.outline?.canScroll === "true"),
+      "reader QA must cover a viewport where the outline card can scroll",
+    );
 
     console.log(
       JSON.stringify(
@@ -995,6 +1022,79 @@ async function main() {
     ) {
       killProcessTree(viteProcess.process);
     }
+  }
+}
+
+async function setPanelScrollRatio(cdp, ratio) {
+  await evaluate(
+    cdp,
+    (nextRatio) => {
+      for (const selector of [
+        ".reader-preview-outline-list",
+        ".reader-preview-scroll",
+      ]) {
+        const scroller = document.querySelector(selector);
+        if (!(scroller instanceof HTMLElement)) {
+          continue;
+        }
+
+        scroller.scrollTop =
+          Math.max(0, scroller.scrollHeight - scroller.clientHeight) * nextRatio;
+        scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
+      }
+    },
+    ratio,
+  );
+  await delay(250);
+}
+
+async function collectScrollFadeState(cdp) {
+  return evaluate(cdp, () => {
+    const collectCard = (selector) => {
+      const card = document.querySelector(selector);
+      if (!(card instanceof HTMLElement)) {
+        return null;
+      }
+
+      return {
+        canScroll: card.dataset.canScroll,
+        hasScrollBelow: card.dataset.hasScrollBelow,
+        scrolledFromTop: card.dataset.scrolledFromTop,
+        topOpacity: getComputedStyle(card, "::before").opacity,
+        bottomOpacity: getComputedStyle(card, "::after").opacity,
+      };
+    };
+
+    return {
+      outline: collectCard(".reader-preview-outline-card"),
+      reading: collectCard(".reader-preview-reading-card"),
+    };
+  });
+}
+
+function assertScrollFadeState(state, { position }) {
+  for (const [cardName, cardState] of Object.entries(state)) {
+    assert.ok(cardState, `${cardName} card fade state is missing`);
+    const canScroll = cardState.canScroll === "true";
+    const topOpacity = canScroll && position !== "start" ? "1" : "0";
+    const bottomOpacity = canScroll && position !== "end" ? "1" : "0";
+
+    assert.equal(cardState.topOpacity, topOpacity, `${cardName} top fade opacity`);
+    assert.equal(
+      cardState.bottomOpacity,
+      bottomOpacity,
+      `${cardName} bottom fade opacity`,
+    );
+    assert.equal(
+      cardState.scrolledFromTop,
+      topOpacity === "1" ? "true" : "false",
+      `${cardName} top scroll state`,
+    );
+    assert.equal(
+      cardState.hasScrollBelow,
+      bottomOpacity === "1" ? "true" : "false",
+      `${cardName} bottom scroll state`,
+    );
   }
 }
 
@@ -1170,7 +1270,7 @@ async function collectLayout(cdp) {
         : "",
       longCodeScrollerHasHorizontalOverflow: Boolean(
         longCodeScroller &&
-          longCodeScroller.scrollWidth > longCodeScroller.clientWidth + 1,
+        longCodeScroller.scrollWidth > longCodeScroller.clientWidth + 1,
       ),
       codeCopyButtonVisible: Boolean(codeCopyButton && fitsViewport(codeCopyButton)),
       codeCopyButtonSize: {
@@ -1227,8 +1327,8 @@ async function collectLayout(cdp) {
       filePathCopyBackground: filePathCopyButtonStyle?.backgroundColor ?? "",
       filePathCopyIsBeforeText: Boolean(
         filePathCopyButtonRect &&
-          filePathTextRect &&
-          filePathCopyButtonRect.left < filePathTextRect.left,
+        filePathTextRect &&
+        filePathCopyButtonRect.left < filePathTextRect.left,
       ),
       filePathTitleMatchesText:
         (filePathText?.getAttribute("title") ?? "") ===
@@ -1257,12 +1357,10 @@ async function collectLayout(cdp) {
         : "",
       tableFitsWrapper: Boolean(
         wrappingTable &&
-          wrappingTableWrapper &&
-          wrappingTable.scrollWidth <= wrappingTableWrapper.clientWidth + 1,
+        wrappingTableWrapper &&
+        wrappingTable.scrollWidth <= wrappingTableWrapper.clientWidth + 1,
       ),
-      longTableCellWrapped: Boolean(
-        wrappingTableCellTextLineCount > 1,
-      ),
+      longTableCellWrapped: Boolean(wrappingTableCellTextLineCount > 1),
       wrappingTableCellTextLineCount,
       hasHorizontalDocumentOverflow:
         documentElement.scrollWidth > documentElement.clientWidth,

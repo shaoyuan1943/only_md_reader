@@ -450,7 +450,6 @@ async function highlightFencedCode(
           code,
           codeThemeName: codeTheme.name,
           language,
-          theme: codeTheme.theme,
         });
 
     replacements.push({
@@ -537,19 +536,21 @@ async function highlightCodeBlock({
   code,
   codeThemeName,
   language,
-  theme,
 }: {
   code: string;
   codeThemeName: "Eva Light Bold" | "Eva Dark Bold";
   language: string;
-  theme: ThemeRegistrationAny;
 }): Promise<string> {
   try {
     const codeToHtml = await getShikiCodeToHtml();
 
     return await codeToHtml(code, {
       lang: language || "text",
-      theme,
+      themes: {
+        light: codeThemeByMode.light.theme,
+        dark: codeThemeByMode.dark.theme,
+      },
+      defaultColor: false,
       transformers: [
         {
           pre(node) {

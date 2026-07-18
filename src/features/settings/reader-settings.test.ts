@@ -19,6 +19,7 @@ void test("default reader settings match the persisted camelCase contract", () =
     "contentMaxWidth",
     "lightCodeTheme",
     "darkCodeTheme",
+    "pdfAllowGlobalScaling",
   ]);
   assert.equal(defaultReaderSettings.schemaVersion, 1);
   assert.equal(defaultReaderSettings.colorThemeId, "warm-paper");
@@ -31,6 +32,7 @@ void test("default reader settings match the persisted camelCase contract", () =
   assert.equal(defaultReaderSettings.contentMaxWidth, 860);
   assert.equal(defaultReaderSettings.lightCodeTheme, "Eva Light Bold");
   assert.equal(defaultReaderSettings.darkCodeTheme, "Eva Dark Bold");
+  assert.equal(Reflect.get(defaultReaderSettings, "pdfAllowGlobalScaling"), false);
 });
 
 void test("settings patches cannot change the schema version", () => {

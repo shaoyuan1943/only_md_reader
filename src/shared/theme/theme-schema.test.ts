@@ -25,6 +25,15 @@ void test("Warm Paper bundle contains complete light and dark token sets", () =>
       assert.ok(theme.modes[mode][key], `${mode}.${key} should be present`);
     }
   }
+
+  assert.equal(
+    theme.modes.light.dropdownShadow,
+    "0 24px 56px rgba(91,66,45,.30), 0 8px 22px rgba(91,66,45,.20)",
+  );
+  assert.equal(
+    theme.modes.dark.dropdownShadow,
+    "0 28px 64px rgba(0,0,0,.72), 0 10px 26px rgba(0,0,0,.58)",
+  );
 });
 
 void test("theme validation rejects missing token fields with a precise path", () => {

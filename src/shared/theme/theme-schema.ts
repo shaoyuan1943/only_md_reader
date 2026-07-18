@@ -42,6 +42,7 @@ export const THEME_TOKEN_KEYS = [
   "dropdownMenuBg",
   "dropdownOptionHoverBg",
   "dropdownOptionSelectedBg",
+  "dropdownShadow",
   "switchTrackOff",
   "switchTrackOn",
   "switchThumb",
@@ -62,7 +63,7 @@ export type ThemeTokenBundle = {
 
 const COLOR_VALUE_PATTERN =
   /^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgba?\([^)]+\)|hsla?\([^)]+\)|color-mix\([^)]+\)|transparent|currentColor)$/;
-const NON_COLOR_TOKEN_KEYS = new Set<ThemeTokenKey>(["panelShadow"]);
+const NON_COLOR_TOKEN_KEYS = new Set<ThemeTokenKey>(["dropdownShadow", "panelShadow"]);
 
 const MODE_SET = new Set<string>(THEME_MODES);
 const MODE_OPTION_SET = new Set<string>(THEME_MODE_OPTIONS);

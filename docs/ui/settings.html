@@ -8,7 +8,7 @@
       :root {
         --canvas-width: 1920px;
         --window-width: 900px;
-        --window-height: 480px;
+        --window-height: 560px;
         --window-radius: 22px;
         --panel-radius: 22px;
         --control-radius: 13px;
@@ -38,6 +38,8 @@
         --dropdown-menu-bg: #fff8f0;
         --dropdown-option-hover-bg: #f0e4d6;
         --dropdown-option-selected-bg: #e7d3bd;
+        --dropdown-shadow:
+          0 24px 56px rgba(91, 66, 45, 0.3), 0 8px 22px rgba(91, 66, 45, 0.2);
         --segmented-border: #ded2c1;
         --segmented-text: #5f564c;
         --segmented-selected-border: #d6c8b7;
@@ -73,6 +75,8 @@
         --dropdown-menu-bg: #2a241e;
         --dropdown-option-hover-bg: #352c24;
         --dropdown-option-selected-bg: #433126;
+        --dropdown-shadow:
+          0 28px 64px rgba(0, 0, 0, 0.72), 0 10px 26px rgba(0, 0, 0, 0.58);
         --segmented-border: #3b3128;
         --segmented-text: #b8aa99;
         --segmented-selected-border: #4a3c31;
@@ -192,6 +196,14 @@
         padding: 40px 50px 36px;
       }
 
+      .settings-panel:has(.custom-select[open]) {
+        z-index: 5;
+      }
+
+      .settings-window-frame:has(.custom-select[open]) .settings-window-title {
+        visibility: hidden;
+      }
+
       .settings-form {
         display: grid;
         gap: 20px;
@@ -304,6 +316,72 @@
         transform: translateY(-35%) rotate(225deg);
       }
 
+      .pdf-auto-scale-control {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 48px;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .pdf-setting-copy {
+        min-width: 0;
+      }
+
+      .pdf-setting-title {
+        color: var(--control-text);
+        font-size: 13px;
+        font-weight: 760;
+        line-height: 1.35;
+      }
+
+      .pdf-setting-help {
+        margin-top: 4px;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 620;
+        line-height: 1.45;
+      }
+
+      .pdf-auto-scale-toggle {
+        width: 48px;
+        height: 48px;
+        display: inline-grid;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        color: var(--text-secondary);
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .pdf-auto-scale-toggle:hover {
+        color: var(--control-focus-border);
+      }
+
+      .pdf-auto-scale-toggle:focus-visible {
+        outline: 0;
+        color: var(--control-focus-border);
+      }
+
+      .pdf-auto-scale-toggle[aria-pressed="true"] {
+        color: var(--switch-track-on);
+      }
+
+      .pdf-auto-scale-toggle svg {
+        width: 42px;
+        height: 42px;
+        fill: currentColor;
+      }
+
+      .pdf-auto-scale-toggle .toggle-icon-on,
+      .pdf-auto-scale-toggle[aria-pressed="true"] .toggle-icon-off {
+        display: none;
+      }
+
+      .pdf-auto-scale-toggle[aria-pressed="true"] .toggle-icon-on {
+        display: block;
+      }
+
       .select-menu {
         position: absolute;
         top: calc(100% + 8px);
@@ -316,7 +394,7 @@
         background: var(--dropdown-menu-bg);
         padding: 7px;
         box-shadow:
-          0 18px 36px color-mix(in srgb, var(--app-bg) 48%, transparent),
+          var(--dropdown-shadow),
           inset 0 0 0 1px var(--control-border);
       }
 
@@ -456,6 +534,43 @@
                     </div>
                   </details>
                 </div>
+
+                <div class="settings-row settings-row-pdf">
+                  <div class="settings-label">PDF 导出</div>
+                  <div class="pdf-auto-scale-control">
+                    <div class="pdf-setting-copy">
+                      <div class="pdf-setting-title">允许自动缩小 PDF 内容</div>
+                      <div class="pdf-setting-help">
+                        超宽内容可能触发整页缩小，导致不同文件字号显示不同
+                      </div>
+                    </div>
+                    <button
+                      class="pdf-auto-scale-toggle"
+                      type="button"
+                      aria-label="允许自动缩小 PDF 内容"
+                      aria-pressed="false"
+                    >
+                      <svg
+                        class="toggle-icon-off"
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M715 267c135.31 0 245 109.69 245 245S850.31 757 715 757H309C173.69 757 64 647.31 64 512s109.69-245 245-245h406z m0 40H309c-113.218 0-205 91.782-205 205 0 112.086 89.955 203.162 201.61 204.973L309 717h406c113.218 0 205-91.782 205-205 0-112.086-89.955-203.162-201.61-204.973L715 307z m-406 60c80.081 0 145 64.919 145 145s-64.919 145-145 145-145-64.919-145-145 64.919-145 145-145z m0 40c-57.99 0-105 47.01-105 105s47.01 105 105 105 105-47.01 105-105-47.01-105-105-105z"
+                        ></path>
+                      </svg>
+                      <svg
+                        class="toggle-icon-on"
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M715 267c135.31 0 245 109.69 245 245S850.31 757 715 757H309C173.69 757 64 647.31 64 512s109.69-245 245-245h406z m0 40H309c-113.218 0-205 91.782-205 205 0 112.086 89.955 203.162 201.61 204.973L309 717h406c113.218 0 205-91.782 205-205 0-112.086-89.955-203.162-201.61-204.973L715 307z m0 60c80.081 0 145 64.919 145 145s-64.919 145-145 145-145-64.919-145-145 64.919-145 145-145z m0 40c-57.99 0-105 47.01-105 105s47.01 105 105 105 105-47.01 105-105-47.01-105-105-105z"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
             <div class="version">MD极简阅读 · v0.1.2</div>
@@ -521,6 +636,43 @@
                     </div>
                   </details>
                 </div>
+
+                <div class="settings-row settings-row-pdf">
+                  <div class="settings-label">PDF 导出</div>
+                  <div class="pdf-auto-scale-control">
+                    <div class="pdf-setting-copy">
+                      <div class="pdf-setting-title">允许自动缩小 PDF 内容</div>
+                      <div class="pdf-setting-help">
+                        超宽内容可能触发整页缩小，导致不同文件字号显示不同
+                      </div>
+                    </div>
+                    <button
+                      class="pdf-auto-scale-toggle"
+                      type="button"
+                      aria-label="允许自动缩小 PDF 内容"
+                      aria-pressed="true"
+                    >
+                      <svg
+                        class="toggle-icon-off"
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M715 267c135.31 0 245 109.69 245 245S850.31 757 715 757H309C173.69 757 64 647.31 64 512s109.69-245 245-245h406z m0 40H309c-113.218 0-205 91.782-205 205 0 112.086 89.955 203.162 201.61 204.973L309 717h406c113.218 0 205-91.782 205-205 0-112.086-89.955-203.162-201.61-204.973L715 307z m-406 60c80.081 0 145 64.919 145 145s-64.919 145-145 145-145-64.919-145-145 64.919-145 145-145z m0 40c-57.99 0-105 47.01-105 105s47.01 105 105 105 105-47.01 105-105-47.01-105-105-105z"
+                        ></path>
+                      </svg>
+                      <svg
+                        class="toggle-icon-on"
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M715 267c135.31 0 245 109.69 245 245S850.31 757 715 757H309C173.69 757 64 647.31 64 512s109.69-245 245-245h406z m0 40H309c-113.218 0-205 91.782-205 205 0 112.086 89.955 203.162 201.61 204.973L309 717h406c113.218 0 205-91.782 205-205 0-112.086-89.955-203.162-201.61-204.973L715 307z m0 60c80.081 0 145 64.919 145 145s-64.919 145-145 145-145-64.919-145-145 64.919-145 145-145z m0 40c-57.99 0-105 47.01-105 105s47.01 105 105 105 105-47.01 105-105-47.01-105-105-105z"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
             <div class="version">MD极简阅读 · v0.1.2</div>
@@ -557,6 +709,13 @@
               }
             });
           });
+        });
+      });
+
+      document.querySelectorAll(".pdf-auto-scale-toggle").forEach((toggle) => {
+        toggle.addEventListener("click", () => {
+          const isPressed = toggle.getAttribute("aria-pressed") === "true";
+          toggle.setAttribute("aria-pressed", String(!isPressed));
         });
       });
     </script>
