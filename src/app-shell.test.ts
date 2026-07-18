@@ -64,10 +64,20 @@ const readerWindowTsx = readFileSync(
   new URL("./features/reader/ReaderPreviewWindow.tsx", import.meta.url),
   "utf8",
 );
+const pdfExportCss = readFileSync(
+  new URL("./features/export-pdf/pdf-export.css", import.meta.url),
+  "utf8",
+);
 const settingsWindowTsx = readFileSync(
   new URL("./features/settings/SettingsWindow.tsx", import.meta.url),
   "utf8",
 );
+
+void test("PDF export snapshots the persisted scaling mode for each export", () => {
+  assert.match(readerWindowTsx, /settingsApi\.getReaderSettings\(\)/);
+  assert.match(readerWindowTsx, /pdfAllowGlobalScaling/);
+  assert.match(readerWindowTsx, /preparePdfPrintLayout/);
+});
 const readBootWindowEntry = () => {
   const bootWindowEntryUrl = new URL("./boot-window.ts", import.meta.url);
 
@@ -927,6 +937,8 @@ void test("reader window implements formal scroll chrome and layered card shadow
   );
   assert.match(appCss, /\.reader-preview-outline-card::before/);
   assert.match(appCss, /\.reader-preview-reading-card::before/);
+  assert.match(appCss, /\.reader-preview-outline-card::after/);
+  assert.match(appCss, /\.reader-preview-reading-card::after/);
   assert.match(
     appCss,
     /\.reader-preview-outline-list,\s*\.reader-preview-scroll\s*{[^}]*\bscrollbar-width:\s*none;/s,
@@ -953,8 +965,20 @@ void test("reader window implements formal scroll chrome and layered card shadow
     /\.reader-preview-reading-card\[data-scrolled-from-top="true"\]::before/,
   );
   assert.match(
+    readerWindowTsx,
+    /data-has-scroll-below=\{chromeState\.hasScrollBelow\}/,
+  );
+  assert.match(
     appCss,
-    /\.reader-preview-outline-card::before,\s*\.reader-preview-reading-card::before\s*{[^}]*\bopacity:\s*0;/s,
+    /\.reader-preview-outline-card\[data-has-scroll-below="true"\]::after/,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-reading-card\[data-has-scroll-below="true"\]::after/,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-outline-card::before,\s*\.reader-preview-reading-card::before,\s*\.reader-preview-outline-card::after,\s*\.reader-preview-reading-card::after\s*{[^}]*\bopacity:\s*0;/s,
   );
   assert.doesNotMatch(
     appCss,
@@ -967,6 +991,10 @@ void test("reader window implements formal scroll chrome and layered card shadow
   assert.doesNotMatch(
     appCss,
     /\.reader-preview-outline-card:hover\s+\.reader-preview-scrollbar-hotzone/s,
+  );
+  assert.match(
+    pdfExportCss,
+    /\.reader-preview-reading-card::before,\s*\.reader-preview-reading-card::after\s*{[^}]*\bdisplay:\s*none\s*!important;/s,
   );
 });
 
@@ -1190,7 +1218,20 @@ void test("desktop backend registers settings, settings-window, and window-state
   assert.match(settingsWindowRs, /show\(\)/);
   assert.match(settingsWindowRs, /set_focus\(\)/);
   assert.match(settingsWindowRs, /WebviewWindowBuilder::new/);
-  assert.match(settingsWindowRs, /\.inner_size\(900\.0,\s*560\.0\)/);
+  assert.match(settingsWindowRs, /SETTINGS_WINDOW_WIDTH:\s*f64\s*=\s*900\.0/);
+  assert.match(settingsWindowRs, /SETTINGS_WINDOW_HEIGHT:\s*f64\s*=\s*500\.0/);
+  assert.match(
+    settingsWindowRs,
+    /\.inner_size\(SETTINGS_WINDOW_WIDTH,\s*SETTINGS_WINDOW_HEIGHT\)/,
+  );
+  assert.match(
+    settingsWindowRs,
+    /\.min_inner_size\(SETTINGS_WINDOW_WIDTH,\s*SETTINGS_WINDOW_HEIGHT\)/,
+  );
+  assert.match(
+    settingsWindowRs,
+    /\.max_inner_size\(SETTINGS_WINDOW_WIDTH,\s*SETTINGS_WINDOW_HEIGHT\)/,
+  );
   assert.match(settingsWindowRs, /windowKind/);
   assert.match(settingsWindowRs, /settings/);
 });
@@ -1354,7 +1395,7 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
   assert.doesNotMatch(settingsRowBlock, /padding:/);
   assert.match(
     appCss,
-    /\.select-menu\s*{[^}]*--select-menu-max-height:\s*min\(196px,\s*calc\(100vh - 318px\)\);[^}]*\bmax-height:\s*var\(--select-menu-max-height\);[^}]*\boverflow:\s*hidden;/s,
+    /\.select-menu\s*{[^}]*--select-menu-max-height:\s*clamp\(168px,\s*calc\(100vh - 318px\),\s*196px\);[^}]*\bmax-height:\s*var\(--select-menu-max-height\);[^}]*\boverflow:\s*hidden;/s,
   );
   assert.match(
     appCss,
@@ -1417,7 +1458,7 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
 });
 
 void test("settings window displays the package version", () => {
-  assert.equal(packageJson.version, "0.1.5");
+  assert.equal(packageJson.version, "0.1.6");
   assert.equal(tauriConfig.version, packageJson.version);
   assert.match(
     settingsWindowTsx,
@@ -1427,7 +1468,7 @@ void test("settings window displays the package version", () => {
 
 void test("native settings window keeps the settings.html window shape at its native width", () => {
   const readerResponsiveBlockStart = appCss.indexOf("@media (max-width: 980px)");
-  const settingsResponsiveBlockStart = appCss.indexOf("@media (max-width: 760px)");
+  const settingsResponsiveBlockStart = appCss.indexOf("@media (max-width: 560px)");
 
   assert.notEqual(readerResponsiveBlockStart, -1);
   assert.notEqual(settingsResponsiveBlockStart, -1);

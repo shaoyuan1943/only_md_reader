@@ -6,7 +6,18 @@ import { spawn } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "..");
 const outputPdf = resolve(root, "output/playwright/pdf-export-qa.pdf");
-const outputPreview = resolve(root, "output/playwright/pdf-export-qa-print-preview.png");
+const outputGlobalScalingPdf = resolve(
+  root,
+  "output/playwright/pdf-export-qa-global-scaling.pdf",
+);
+const outputHighDpiPdf = resolve(
+  root,
+  "output/playwright/pdf-export-qa-fixed-high-dpi.pdf",
+);
+const outputPreview = resolve(
+  root,
+  "output/playwright/pdf-export-qa-print-preview.png",
+);
 const qaUrl = "http://127.0.0.1:1420/tools/reader-ui-qa.html";
 const chromePath = resolve(
   process.env.LOCALAPPDATA ?? "",
@@ -115,7 +126,10 @@ async function main() {
     assert.equal(notification.result.value.stackLeft, "24px");
     assert.equal(notification.result.value.stackBottom, "24px");
     assert.equal(notification.result.value.borderRadius, "14px");
-    assert.equal(notification.result.value.background, notification.result.value.shellBackground);
+    assert.equal(
+      notification.result.value.background,
+      notification.result.value.shellBackground,
+    );
     assert.equal(
       notification.result.value.fontFamily,
       notification.result.value.readingFontFamily,
@@ -135,8 +149,66 @@ async function main() {
       const codeToken = document.querySelector('.markdown-code-block .line span');
       const tableHeader = document.querySelector('.markdown-rendered-document th');
       const link = document.querySelector('.markdown-rendered-document a');
+      const overflowProbe = document.createElement('p');
+      overflowProbe.style.width = '420px';
+      const inlineCodeChainProbe = document.createElement('p');
+      inlineCodeChainProbe.style.width = '420px';
+      for (const [index, value] of [
+        '.inner_size(READER_WINDOW_RESTORED_WIDTH, READER_WINDOW_RESTORED_HEIGHT)',
+        '.min_inner_size(READER_WINDOW_MIN_WIDTH, READER_WINDOW_MIN_HEIGHT)',
+        '.resizable(false)',
+        '.maximizable(true)',
+        '.maximized(true)',
+      ].entries()) {
+        if (index > 0) inlineCodeChainProbe.append(document.createTextNode('、'));
+        const code = document.createElement('code');
+        code.textContent = value;
+        inlineCodeChainProbe.append(code);
+      }
+      const normalInlineCodeProbe = document.createElement('code');
+      normalInlineCodeProbe.textContent = 'src/features/export-pdf/export-pdf.ts';
+      const inlineCodeProbe = document.createElement('code');
+      inlineCodeProbe.textContent = 'InlineCodeWithoutNaturalBreaks'.repeat(12);
+      inlineCodeProbe.setAttribute('data-pdf-wrap-overwide', 'true');
+      overflowProbe.append(
+        document.createTextNode('验证普通行内代码换行：'),
+        normalInlineCodeProbe,
+        document.createTextNode(' '),
+      );
+      overflowProbe.append(inlineCodeProbe);
+      documentRoot?.append(overflowProbe, inlineCodeChainProbe);
+      scroller?.setAttribute('data-pdf-allow-global-scaling', 'false');
+      const documentStyle = documentRoot ? getComputedStyle(documentRoot) : null;
+      const normalInlineCodeStyle = getComputedStyle(normalInlineCodeProbe);
+      const inlineCodeStyle = getComputedStyle(inlineCodeProbe);
+      const documentClientWidth = documentRoot?.clientWidth ?? 0;
+      const documentScrollWidth = documentRoot?.scrollWidth ?? 0;
+      const inlineCodeOverflowWrap = inlineCodeStyle.overflowWrap;
+      const inlineCodeWordBreak = inlineCodeStyle.wordBreak;
+      const inlineCodeChainClientWidth = inlineCodeChainProbe.clientWidth;
+      const inlineCodeChainScrollWidth = inlineCodeChainProbe.scrollWidth;
+      const normalInlineCodeDisplay = normalInlineCodeStyle.display;
+      const normalInlineCodeOverflowWrap = normalInlineCodeStyle.overflowWrap;
+      const normalInlineCodeFragmentCount = normalInlineCodeProbe.getClientRects().length;
+      const normalInlineCodeWhiteSpace = normalInlineCodeStyle.whiteSpace;
+      const normalInlineCodeWordBreak = normalInlineCodeStyle.wordBreak;
+      overflowProbe.remove();
+      inlineCodeChainProbe.remove();
       return {
+        documentClientWidth,
+        documentFontSize: documentStyle?.fontSize,
         documentOverflow: documentRoot ? getComputedStyle(documentRoot).overflow : '',
+        documentScrollWidth,
+        scalingMode: scroller?.getAttribute('data-pdf-allow-global-scaling'),
+        inlineCodeOverflowWrap,
+        inlineCodeWordBreak,
+        inlineCodeChainClientWidth,
+        inlineCodeChainScrollWidth,
+        normalInlineCodeDisplay,
+        normalInlineCodeOverflowWrap,
+        normalInlineCodeFragmentCount,
+        normalInlineCodeWhiteSpace,
+        normalInlineCodeWordBreak,
         notificationDisplay: notificationStack ? getComputedStyle(notificationStack).display : '',
         settingsDisplay: settings ? getComputedStyle(settings).display : '',
         scrollerOverflow: scroller ? getComputedStyle(scroller).overflow : '',
@@ -152,7 +224,20 @@ async function main() {
       returnByValue: true,
     });
     assert.deepEqual(printLayout.result.value, {
+      documentClientWidth: printLayout.result.value.documentClientWidth,
+      documentFontSize: "16px",
       documentOverflow: "visible",
+      documentScrollWidth: printLayout.result.value.documentClientWidth,
+      scalingMode: "false",
+      inlineCodeOverflowWrap: "anywhere",
+      inlineCodeWordBreak: "break-word",
+      inlineCodeChainClientWidth: printLayout.result.value.inlineCodeChainClientWidth,
+      inlineCodeChainScrollWidth: printLayout.result.value.inlineCodeChainScrollWidth,
+      normalInlineCodeDisplay: "inline-block",
+      normalInlineCodeOverflowWrap: "normal",
+      normalInlineCodeFragmentCount: 1,
+      normalInlineCodeWhiteSpace: "nowrap",
+      normalInlineCodeWordBreak: "normal",
       notificationDisplay: "none",
       settingsDisplay: "none",
       scrollerOverflow: "visible",
@@ -164,22 +249,116 @@ async function main() {
       tableHeaderBackground: "rgb(255, 255, 255)",
       linkColor: "rgb(0, 0, 0)",
     });
+    assert.ok(
+      printLayout.result.value.inlineCodeChainScrollWidth <=
+        printLayout.result.value.documentClientWidth,
+      "inline code chains must not expand the printable document width",
+    );
 
-    const preview = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
-  mkdirSync(dirname(outputPreview), { recursive: true });
-  writeFileSync(outputPreview, Buffer.from(preview.data, "base64"));
+    const fixedOverwideLayout = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const documentRoot = document.querySelector('.markdown-rendered-document');
+        const scroller = document.querySelector('.reader-preview-scroll');
+        const wrapper = document.createElement('div');
+        wrapper.className = 'markdown-table-wrapper pdf-global-scaling-probe';
+        const table = document.createElement('table');
+        const row = table.insertRow();
+        const cell = row.insertCell();
+        cell.textContent = 'GlobalScalingProbeWithoutBreaks'.repeat(5);
+        wrapper.append(table);
+        documentRoot?.append(wrapper);
+        scroller?.setAttribute('data-pdf-allow-global-scaling', 'false');
+        return {
+          documentClientWidth: documentRoot?.clientWidth ?? 0,
+          documentScrollWidth: documentRoot?.scrollWidth ?? 0,
+          tableWidth: Math.round(table.getBoundingClientRect().width),
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(
+      fixedOverwideLayout.result.value.documentScrollWidth,
+      fixedOverwideLayout.result.value.documentClientWidth,
+      "fixed-size mode must keep an overwide table inside the printable width",
+    );
 
-  const pdf = await cdp.send("Page.printToPDF", {
+    const preview = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: true,
+    });
+    mkdirSync(dirname(outputPreview), { recursive: true });
+    writeFileSync(outputPreview, Buffer.from(preview.data, "base64"));
+
+    const pdf = await cdp.send("Page.printToPDF", {
       landscape: false,
       preferCSSPageSize: true,
       printBackground: true,
     });
+
+    const globalScalingLayout = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const documentRoot = document.querySelector('.markdown-rendered-document');
+        const scroller = document.querySelector('.reader-preview-scroll');
+        const table = document.querySelector('.pdf-global-scaling-probe table');
+        scroller?.setAttribute('data-pdf-allow-global-scaling', 'true');
+        return {
+          documentClientWidth: documentRoot?.clientWidth ?? 0,
+          documentFontSize: documentRoot ? getComputedStyle(documentRoot).fontSize : '',
+          documentScrollWidth: documentRoot?.scrollWidth ?? 0,
+          tableFontSize: table ? getComputedStyle(table).fontSize : '',
+          tableWidth: Math.round(table?.getBoundingClientRect().width ?? 0),
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(globalScalingLayout.result.value.documentFontSize, "16px");
+    assert.equal(globalScalingLayout.result.value.tableFontSize, "16px");
+    assert.ok(
+      globalScalingLayout.result.value.documentScrollWidth >
+        globalScalingLayout.result.value.documentClientWidth,
+      "automatic-scaling mode must allow overwide content to expand the print layout",
+    );
+    assert.ok(
+      globalScalingLayout.result.value.tableWidth >
+        globalScalingLayout.result.value.documentClientWidth,
+      "automatic-scaling mode must not locally fit the overwide table",
+    );
+    const globalScalingPdf = await cdp.send("Page.printToPDF", {
+      landscape: false,
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
+    await cdp.send("Runtime.evaluate", {
+      expression: `document.querySelector('.reader-preview-scroll')?.setAttribute('data-pdf-allow-global-scaling', 'false')`,
+    });
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1280,
+      height: 720,
+      deviceScaleFactor: 1.5,
+      mobile: false,
+    });
+    const highDpiPdf = await cdp.send("Page.printToPDF", {
+      landscape: false,
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
+    await cdp.send("Emulation.clearDeviceMetricsOverride");
     await cdp.send("Emulation.setEmulatedMedia", { media: "" });
     cdp.close();
 
     mkdirSync(dirname(outputPdf), { recursive: true });
     writeFileSync(outputPdf, Buffer.from(pdf.data, "base64"));
+    writeFileSync(outputGlobalScalingPdf, Buffer.from(globalScalingPdf.data, "base64"));
+    writeFileSync(outputHighDpiPdf, Buffer.from(highDpiPdf.data, "base64"));
     assert.ok(statSync(outputPdf).size > 20_000, "PDF output is unexpectedly small");
+    assert.ok(
+      statSync(outputGlobalScalingPdf).size > 20_000,
+      "automatic-scaling PDF output is unexpectedly small",
+    );
+    assert.ok(
+      statSync(outputHighDpiPdf).size > 20_000,
+      "high-DPI fixed-size PDF output is unexpectedly small",
+    );
     const pageCount = (
       readFileSync(outputPdf)
         .toString("latin1")
@@ -188,7 +367,18 @@ async function main() {
     assert.ok(pageCount >= 2, `expected multi-page PDF, got ${pageCount} pages`);
     console.log(
       JSON.stringify(
-        { status: "passed", outputPdf, pageCount, bytes: statSync(outputPdf).size },
+        {
+          status: "passed",
+          outputPdf,
+          outputGlobalScalingPdf,
+          outputHighDpiPdf,
+          pageCount,
+          bytes: statSync(outputPdf).size,
+          globalScalingBytes: statSync(outputGlobalScalingPdf).size,
+          highDpiBytes: statSync(outputHighDpiPdf).size,
+          fixedOverwideLayout: fixedOverwideLayout.result.value,
+          globalScalingLayout: globalScalingLayout.result.value,
+        },
         null,
         2,
       ),

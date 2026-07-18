@@ -74,3 +74,25 @@ void test("returns the native export failure message", async () => {
     message: "native PDF unavailable",
   });
 });
+
+void test("keeps local print fitting active until the native PDF write finishes", async () => {
+  const events: string[] = [];
+
+  const result = await startPdfExport({
+    awaitReadiness: () => Promise.resolve({ kind: "ready" }),
+    prepareLayout: () => {
+      events.push("prepare");
+      return () => events.push("restore");
+    },
+    exportPdf: () => {
+      events.push("export");
+      return Promise.resolve({ outputPath: "E:/notes/readme.pdf" });
+    },
+  });
+
+  assert.deepEqual(result, {
+    kind: "exported",
+    outputPath: "E:/notes/readme.pdf",
+  });
+  assert.deepEqual(events, ["prepare", "export", "restore"]);
+});

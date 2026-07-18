@@ -8,11 +8,13 @@ export type PdfExportResult =
 type StartPdfExportOptions = {
   awaitReadiness(this: void): Promise<PdfExportReadiness>;
   exportPdf(this: void): Promise<{ outputPath: string }>;
+  prepareLayout?(this: void): () => void;
 };
 
 export async function startPdfExport({
   awaitReadiness,
   exportPdf,
+  prepareLayout,
 }: StartPdfExportOptions): Promise<PdfExportResult> {
   const readiness = await awaitReadiness();
 
@@ -21,8 +23,14 @@ export async function startPdfExport({
   }
 
   try {
-    const output = await exportPdf();
-    return { kind: "exported", outputPath: output.outputPath };
+    const restoreLayout = prepareLayout?.() ?? (() => undefined);
+
+    try {
+      const output = await exportPdf();
+      return { kind: "exported", outputPath: output.outputPath };
+    } finally {
+      restoreLayout();
+    }
   } catch (error) {
     return {
       kind: "export-failed",

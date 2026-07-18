@@ -33,6 +33,10 @@ void test("getThemeCssVariables maps every token key to a kebab CSS variable", (
   assert.equal(variables["--app-bg"], "#EDE4D7");
   assert.equal(variables["--button-primary-bg"], "#8A5A3C");
   assert.equal(variables["--dropdown-option-selected-bg"], "#E7D3BD");
+  assert.equal(
+    variables["--dropdown-shadow"],
+    "0 24px 56px rgba(91,66,45,.30), 0 8px 22px rgba(91,66,45,.20)",
+  );
 });
 
 void test("applyTheme writes light mode CSS variables and metadata to the target root", () => {

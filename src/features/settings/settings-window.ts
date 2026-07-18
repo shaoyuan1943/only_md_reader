@@ -7,7 +7,7 @@ export type SettingsWindowViewModel = {
   fields: Array<{
     id: keyof ReaderSettings;
     label: string;
-    value: string;
+    value: string | boolean;
   }>;
 };
 
@@ -31,6 +31,11 @@ export function createSettingsWindowViewModel(
         id: "codeFontFamily",
         label: "代码字体",
         value: settings.codeFontFamily ?? "Maple Mono NF CN",
+      },
+      {
+        id: "pdfAllowGlobalScaling",
+        label: "PDF 导出",
+        value: settings.pdfAllowGlobalScaling,
       },
     ],
   };

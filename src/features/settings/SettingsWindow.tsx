@@ -232,6 +232,50 @@ export function SettingsWindow({ api = createSettingsApi() }: SettingsWindowProp
                 void savePatch({ codeFontFamily: value });
               }}
             />
+
+            <div className="settings-row settings-row-pdf">
+              <div className="settings-label">PDF 导出</div>
+              <div className="pdf-auto-scale-control">
+                <div className="pdf-setting-copy">
+                  <div className="pdf-setting-title">允许自动缩小 PDF 内容</div>
+                  <div className="pdf-setting-help">
+                    超宽内容可能触发整页缩小，导致不同文件字号显示不同
+                  </div>
+                </div>
+                <button
+                  className="pdf-auto-scale-toggle"
+                  type="button"
+                  aria-label="允许自动缩小 PDF 内容"
+                  aria-pressed={settings.pdfAllowGlobalScaling}
+                  onClick={() => {
+                    void savePatch({
+                      pdfAllowGlobalScaling: !settings.pdfAllowGlobalScaling,
+                    });
+                  }}
+                >
+                  <svg
+                    className="toggle-icon-off"
+                    viewBox="0 0 1024 1024"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M715 267c135.31 0 245 109.69 245 245S850.31 757 715 757H309C173.69 757 64 647.31 64 512s109.69-245 245-245h406z m0 40H309c-113.218 0-205 91.782-205 205 0 112.086 89.955 203.162 201.61 204.973L309 717h406c113.218 0 205-91.782 205-205 0-112.086-89.955-203.162-201.61-204.973L715 307z m-406 60c80.081 0 145 64.919 145 145s-64.919 145-145 145-145-64.919-145-145 64.919-145 145-145z m0 40c-57.99 0-105 47.01-105 105s47.01 105 105 105 105-47.01 105-105-47.01-105-105-105z"
+                    />
+                  </svg>
+                  <svg
+                    className="toggle-icon-on"
+                    viewBox="0 0 1024 1024"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M715 267c135.31 0 245 109.69 245 245S850.31 757 715 757H309C173.69 757 64 647.31 64 512s109.69-245 245-245h406z m0 40H309c-113.218 0-205 91.782-205 205 0 112.086 89.955 203.162 201.61 204.973L309 717h406c113.218 0 205-91.782 205-205 0-112.086-89.955-203.162-201.61-204.973L715 307z m0 60c80.081 0 145 64.919 145 145s-64.919 145-145 145-145-64.919-145-145 64.919-145 145-145z m0 40c-57.99 0-105 47.01-105 105s47.01 105 105 105 105-47.01 105-105-47.01-105-105-105z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
           {saveError ? (
@@ -240,7 +284,7 @@ export function SettingsWindow({ api = createSettingsApi() }: SettingsWindowProp
             </p>
           ) : null}
         </section>
-        <div className="settings-version">MD极简阅读 · v0.1.5</div>
+        <div className="settings-version">MD极简阅读 · v0.1.6</div>
       </section>
     </main>
   );

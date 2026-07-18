@@ -25,6 +25,8 @@ pub struct ReaderSettings {
     pub content_max_width: u32,
     pub light_code_theme: String,
     pub dark_code_theme: String,
+    #[serde(default)]
+    pub pdf_allow_global_scaling: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -50,6 +52,7 @@ pub struct ReaderSettingsPatch {
     pub content_max_width: Option<u32>,
     pub light_code_theme: Option<String>,
     pub dark_code_theme: Option<String>,
+    pub pdf_allow_global_scaling: Option<bool>,
 }
 
 impl Default for ReaderSettings {
@@ -66,6 +69,7 @@ impl Default for ReaderSettings {
             content_max_width: 860,
             light_code_theme: "Eva Light Bold".to_string(),
             dark_code_theme: "Eva Dark Bold".to_string(),
+            pdf_allow_global_scaling: false,
         }
     }
 }
@@ -180,6 +184,9 @@ fn apply_reader_settings_patch(settings: &mut ReaderSettings, patch: ReaderSetti
     if let Some(value) = patch.dark_code_theme {
         settings.dark_code_theme = value;
     }
+    if let Some(value) = patch.pdf_allow_global_scaling {
+        settings.pdf_allow_global_scaling = value;
+    }
     settings.schema_version = 1;
 }
 
@@ -215,6 +222,9 @@ fn migrate_reader_settings_value(value: Value) -> ReaderSettings {
         if let Some(value) = content_max_width.as_u64() {
             settings.content_max_width = (value as u32).clamp(560, 1200);
         }
+    }
+    if let Some(Value::Bool(pdf_allow_global_scaling)) = object.get("pdfAllowGlobalScaling") {
+        settings.pdf_allow_global_scaling = *pdf_allow_global_scaling;
     }
 
     settings
@@ -281,6 +291,7 @@ mod tests {
         assert!(content.contains("\"schemaVersion\""));
         assert!(content.contains("\"themeMode\""));
         assert!(content.contains("\"contentMaxWidth\""));
+        assert!(content.contains("\"pdfAllowGlobalScaling\": false"));
     }
 
     #[test]
@@ -300,6 +311,10 @@ mod tests {
         assert_eq!(settings.theme_mode, ThemeMode::Dark);
         assert_eq!(settings.body_font_size, 18.0);
         assert_eq!(settings.content_max_width, 920);
+        assert_eq!(
+            serde_json::to_value(&settings).unwrap()["pdfAllowGlobalScaling"],
+            false
+        );
     }
 
     #[test]
@@ -357,6 +372,21 @@ mod tests {
 
         assert_eq!(settings.body_font_family, None);
         assert_eq!(settings.code_font_family, None);
+    }
+
+    #[test]
+    fn pdf_global_scaling_patch_is_persisted_in_the_settings_contract() {
+        let mut settings = ReaderSettings::default();
+        let patch =
+            serde_json::from_str::<ReaderSettingsPatch>(r#"{"pdfAllowGlobalScaling":true}"#)
+                .unwrap();
+
+        apply_reader_settings_patch(&mut settings, patch);
+
+        assert_eq!(
+            serde_json::to_value(&settings).unwrap()["pdfAllowGlobalScaling"],
+            true
+        );
     }
 
     fn unique_test_dir(name: &str) -> std::path::PathBuf {

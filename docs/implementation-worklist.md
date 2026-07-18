@@ -185,6 +185,8 @@
   - 追加修正记录：2026-07-02 当前策略改为默认最大化打开，原生还原态内容尺寸和最小内容尺寸均为 `1320x560`。创建 reader window 时使用 `.inner_size(READER_WINDOW_RESTORED_WIDTH, READER_WINDOW_RESTORED_HEIGHT)`、`.min_inner_size(READER_WINDOW_MIN_WIDTH, READER_WINDOW_MIN_HEIGHT)`、`.resizable(false)`、`.maximizable(true)`、`.maximized(true)`，不再使用 `.max_inner_size(...)`。用户可通过最大化按钮或双击标题栏在最大化与 `1320x560` 之间切换，但不能通过窗口边缘拖拽改成任意尺寸。同时保留从最近文件打开时的可见闪动修复：最近文件点击不再进入前端 loading/disabled 状态，Rust `open_reader_window` 会先隐藏 `main` 打开文件窗口，再进入 reader 创建/聚焦路径；打开失败时恢复 `main` 显示并聚焦。新增/更新 `reader windows open maximized, restore to the minimum two-column size, and disable drag resizing`、`reader command hides the source open-file window before the slow open path and restores it on failure` 以及最近文件点击无 visible loading 的回归断言。
   - 追加验证记录：2026-07-02 18:04 执行 `pnpm tauri build --no-bundle --ci` 成功生成新的测试 exe：`E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，大小 `45253120` bytes，LastWriteTime `2026-07-02 18:04:48`。随后启动该 release exe 打开 `fixtures\markdown\basic-syntax.md` 并用 Win32 API 验证原生窗口行为：初始 `IsZoomed = true`、`HasMaximizeBox = true`、`ClientWidth = 1920`、`ClientHeight = 1129`；向标题栏发送 `WM_NCLBUTTONDBLCLK` 后还原为 `IsZoomed = false`、`ClientWidth = 1320`、`ClientHeight = 560`、`HasThickFrame = false`、边缘命中测试没有 resize hit；再次发送 `WM_NCLBUTTONDBLCLK` 后恢复 `IsZoomed = true`。该验证覆盖“打开文件默认最大化”“最大化按钮/标题栏双击只在最大化和最小阅读尺寸间切换”“用户不能通过窗口边缘拖拽改成任意尺寸”。
   - 追加修正记录：2026-07-02 用户确认 `1320x560` 已满足 UI 左右排布需求，并决定阅读窗口采用桌面应用常规缩放策略：默认最大化打开、保留 `1320x560` 还原态和最小内容尺寸、允许用户拖拽窗口边缘调整大小，但不允许拖小于 `1320x560`。实现改为 `.resizable(true)` + `.min_inner_size(READER_WINDOW_MIN_WIDTH, READER_WINDOW_MIN_HEIGHT)` + `.maximizable(true)` + `.maximized(true)`，仍不设置 `.max_inner_size(...)`，历史窗口状态仍不恢复原生宽高和坐标。
+  - 追加修正记录：2026-07-18 根据用户截图为大纲卡片和阅读卡片补齐底部渐隐。`ScrollablePanel` 复用现有滚动度量维护 `data-has-scroll-below`：下方仍有内容时显示与顶部对称的 `::after` 渐变，到达末尾或内容无需滚动时自动隐藏；PDF 导出与设置按钮提升到渐隐层上方，打印态同时隐藏顶部和底部渐隐。回归测试先确认旧实现缺少底部伪元素和状态标记，再修复后通过；`pnpm qa:reader-ui` 在 `1920×1080 @ 1x` 和 `1320×560 @ 2x` 中实际验证两张卡片在起点、中段、末尾的渐隐状态，并人工核对桌面与高 DPI 截图。`pnpm test`（189/189）、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm qa:pdf-export` 和 `pnpm tauri build --no-bundle --ci` 均通过；新测试 EXE 为 `src-tauri/target-pdf-setting-ui-test/release/only-md-reader.exe`，SHA-256 为 `CD662CBA4186DF7CFEDA7CD7633C949391DF044C2A80B0625AAF60534CB1730D`。
+  - 用户验收：2026-07-18 使用上述 Windows 测试 EXE 复验大纲卡片和阅读卡片的底部渐隐，确认测试通过。
 
 - [x] 6.2 Rust 层实现读取 Markdown 文件。完成时间：2026-06-29 17:31
   - 目标：返回文件名、路径、原始 Markdown 文本、基础元数据。
@@ -615,6 +617,32 @@
   - 打印 CSS 统一使用白色背景、黑色文字和灰黑边框；原生 `PrintToPdf` 同时关闭 CSS 背景打印，删除阅读卡片顶部渐变、代码块底色与 Shiki 语法色、表头填充、链接颜色及其他正文背景色。
   - 验收标准：打印态下阅读容器、代码块和表头均为白色；代码 token、链接和正文均为黑色；阅读卡片顶部伪元素不再绘制渐变。
   - 验证记录：先扩展 `pnpm qa:pdf-export` 断言并确认旧样式失败，再修复后通过；生成 4 页、193,961 bytes PDF，Poppler 渲染第一页人工核对为纯白黑字样式。
+
+- [x] 16.15 固定 PDF 正文字号并阻止超宽内容缩小整份 PDF。完成时间：2026-07-17
+  - 原因：打印正文的 `11pt` 被后加载的阅读界面字号覆盖；不可换行的行内代码等内容还会扩张打印布局，触发 WebView2 将整份 PDF 等比缩小，导致不同 Markdown 文件导出的正文大小不一致。
+  - 实现：打印正文强制使用 `11pt`；普通文本、链接、行内代码和代码块允许在 A4 可打印宽度内换行；图片限制到页面宽度；表格固定在自身容器内以 `9pt` 排版并允许单元格换行；只有超过 A4 可打印宽度的块级 KaTeX 公式在导出期间按超宽比例局部缩小，原生 PDF 写入结束后立即恢复页面状态。
+  - 验收标准：使用同一测试版分别导出 `AGENTS.md`、`docs/implementation-worklist.md`、`docs/test_md.md` 等宽度差异明显的文档，普通正文视觉字号一致；长内容不裁切右侧；纵向内容自然分页；超宽表格或公式不能带动整份 PDF 缩小。
+  - 自动验证：2026-07-17 先扩展 `pnpm qa:pdf-export` 并确认旧实现失败：打印正文为 `16px`，注入的不可断行行内代码使正文 `scrollWidth` 从 `749px` 扩张到 `3178px`。修复后打印正文为 `14.6667px`（`11pt`），`scrollWidth` 与 `clientWidth` 相等；专项 QA 生成 4 页、196,580 bytes 的 PDF，文本分析得到正文主字号约 `10.995pt`。`pnpm test`、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm qa:pdf-export`、`pnpm qa:reader-ui` 和 `pnpm tauri build --no-bundle --ci` 均通过。
+  - 用户复验：2026-07-17 确认不同文档的正文视觉字号已经一致，同时发现 `src-tauri`、`export-pdf` 等行内代码会在连字符后拆行。实际 PDF 文本提取确认字符未丢失，根因是打印 CSS 对所有行内代码启用了任意断行。已改为：可在 A4 单行内放下的行内代码保持完整并整体换行；只有单个代码串自身超过可打印宽度时才允许内部强制换行。对应红绿测试、PDF 专项 QA 和阅读界面回归均通过。
+  - 第二次用户复验：2026-07-17 确认单词链拆行显著减少，但 `implementation-worklist (1).pdf` 再次被整页缩小。实测其正文为约 `7.327pt`、22 页，而同批 `AGENTS (1).pdf` 正文为约 `10.99pt`、6 页；A4 页面和内嵌字体一致。运行时打印诊断确认多个可单独放下的行内代码由中文顿号连续连接时，浏览器将整串视为不可断行区域，使正文从 `749px` 扩张到 `1687px`。普通行内代码改为原子级 `inline-block` 后，可在代码片段边界换行，真实实施清单打印宽度恢复为 `749px`；专项回归样本修复前从 `420px` 容器扩张到 `1632px`，修复后整个文档宽度保持 `749px`。
+  - 最终用户复验：2026-07-17 使用第三版 Windows 测试 EXE 再次导出真实文档，确认字号一致、行内代码链换行和页面完整性符合条件，本项验收完成。
+
+- [x] 16.16 增加 PDF 全局自动缩小设置并将初始正文字号调整为 `12pt`。完成时间：2026-07-18
+  - 产品定义：设置名称为“允许自动缩小 PDF 内容”，默认关闭；两种模式都从 `12pt` 开始且不跟随阅读器字号。关闭时保留换行、图片限宽和表格/公式局部适配，禁止整份 PDF 缩小；开启时允许超宽内容触发 WebView2 整体缩小，接受不同文档最终字号不一致。
+  - 第一阶段 UI：2026-07-17 已完成 `docs/ui/settings.html` 明暗主题原型，并将开关移植到真实 `SettingsWindow`。前端和 Rust 设置契约新增 `pdfAllowGlobalScaling` / `pdf_allow_global_scaling`，默认 `false`，旧设置缺字段时保持关闭；点击开关沿用现有持久化、广播和保存失败回滚链路。用户指定的开/关 SVG path 已原样嵌入并跟随主题颜色。
+  - 第一阶段验证：设置契约和 SVG 结构先红后绿；`pnpm qa:settings-ui` 实测默认 `aria-pressed=false`，点击后为 `true`，可见图标切换为 `toggle-icon-on`，保存 patch 为 `{ pdfAllowGlobalScaling: true }`，设置行完整位于面板内。PDF 导出逻辑尚未读取该设置。
+  - UI 复验调整：2026-07-17 根据真实 EXE 截图移除 SVG 开关外层按钮底色、圆角和描边；关闭、悬停、开启状态分别严格使用 `controlBorder`、`controlFocusBorder`、`switchTrackOn`。设置窗口由 `900×680` 逐步收紧为 `900×500`，只回收 PDF 设置项下方的空白，不改变两个字体下拉框的宽度、高度、字号与行布局；表单上移并把单列响应式断点从 `760px` 收紧到 `560px`，避免高 DPI 下误切单列造成底部溢出。
+  - UI 二次复验调整：2026-07-17 字体下拉菜单的最小可视高度固定为四个完整选项（`4 × 42px = 168px`），最大高度仍为 `196px`，超出部分继续滚动；PDF 开关关闭且未悬停时的图标色改为色板中的 `textSecondary`，悬停和开启状态颜色保持不变。
+  - 下拉层级修复：2026-07-17 四项代码字体菜单向上展开时会进入窗口标题区域，原先标题层级 `4` 高于设置面板层级 `3`，导致“设置”文字绘制在菜单内容上。展开期间将设置面板临时提升到层级 `5` 并隐藏窗口内标题，收起后自动恢复；菜单高度、窗口尺寸和其他设置样式保持不变。
+  - 下拉阴影调整：2026-07-17 为展开菜单新增明暗主题独立的 `dropdownShadow` 色板变量并保留 `controlBorder` 内描边；暗色主题采用两层高强度黑色阴影，避免菜单与深色底层融为一体。触发框、四项高度、颜色和展开方向保持不变。
+  - 下拉滚动条光标调整：2026-07-17 滚动条热区、轨道、滑块及拖动状态统一使用普通箭头光标；轨道点击、滑块拖动和自动显隐行为保持不变。
+  - PDF 设置说明调整：2026-07-17 更新为“超宽内容可能触发整页缩小，导致不同文件字号显示不同”，更直接说明开启自动缩小时的跨文件字号差异风险；布局与样式保持不变。
+  - 高 DPI 验证：`pnpm qa:settings-ui` 增加 `600×427 @ 1.5x` 等效视口，实测 PDF 设置行底部为 `329.42px`、版本号顶部为 `367.61px`，无重叠；随后重新构建 Windows 测试 EXE，并在当前系统缩放下确认浅色真实 Tauri 设置窗口为 `902×532`（含原生标题栏），四行布局和开关状态均完整。阅读字体、代码字体下拉框的收起尺寸未改变，真实窗口中分别展开后会按可用空间向下或向上显示，选项列表可正常滚动且没有被窗口边界裁断。
+  - 功能实现：2026-07-17 18:22 阅读窗口在每次导出开始时读取并锁定当前 `pdfAllowGlobalScaling`。关闭时执行公式与超长行内代码的局部适配，并通过打印 CSS 将代码块、表格、图片和公式限制在 A4 可打印宽度；开启时跳过局部适配并仅对这些极端宽内容解除宽度保护，让 WebView2 决定是否整体缩小。两种模式结束或失败后都会恢复临时 DOM 属性和局部样式，阅读窗口字号不受影响。
+  - 自动验证：先补充失败测试，确认旧实现无条件局部适配且仍为 `11pt`；修复后 `pnpm test`（189/189）、`pnpm lint`、`pnpm format:check`、`pnpm build`、`cargo test --manifest-path src-tauri\Cargo.toml`（30/30）、`pnpm qa:settings-ui`、`pnpm qa:reader-ui` 和 `pnpm qa:pdf-export` 全部通过。PDF QA 中固定模式文档宽度保持 `749px`，自动缩小模式允许同一超宽样本扩张到 `1569px`。
+  - PDF 结果：同一 A4 样本在固定模式下正文主字号为 `12pt`、共 4 页；自动缩小模式由打印引擎缩为 `8pt`、共 2 页。设备像素比模拟为 `1.5x` 后，固定模式仍是相同 A4 页面尺寸、`12pt` 和 4 页。两份 PDF 已渲染并人工核对，固定模式超宽表格正常换行，自动模式正文整体缩小。
+  - 测试构建：`pnpm tauri build --no-bundle --ci` 已成功，测试 EXE 为 `src-tauri/target-pdf-setting-ui-test/release/only-md-reader.exe`，SHA-256 为 `F33669064DB8751C4758593AEF36954B7E7EF56BA62F8817DFB03261493BC114`。该版本随后通过用户真实文档复验。
+  - 用户验收：2026-07-18 用户使用真实文档复验固定 `12pt` 与允许整页自动缩小两种模式，确认结果无问题，本项验收完成。
 
 ## 17. 批注阶段，第一版完成后再启动
 

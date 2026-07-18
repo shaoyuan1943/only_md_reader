@@ -43,7 +43,8 @@
     display: block !important;
   }
 
-  .reader-preview-reading-card::before {
+  .reader-preview-reading-card::before,
+  .reader-preview-reading-card::after {
     background: none !important;
     display: none !important;
   }
@@ -63,9 +64,14 @@
   }
 
   .markdown-rendered-document {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
     color: #000 !important;
-    font-size: 11pt;
-    line-height: 1.72;
+    font-size: 12pt !important;
+    line-height: 1.72 !important;
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   .markdown-rendered-document * {
@@ -92,9 +98,46 @@
     text-decoration: underline;
   }
 
+  .markdown-rendered-document a {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .markdown-rendered-document code:not(pre code) {
+    display: inline-block !important;
+    vertical-align: baseline;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .markdown-rendered-document code[data-pdf-wrap-overwide="true"],
+  .markdown-rendered-document th code:not(pre code),
+  .markdown-rendered-document td code:not(pre code) {
+    display: inline !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .markdown-rendered-document .katex,
+  .markdown-rendered-document .katex * {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .markdown-rendered-document .katex-display[data-pdf-local-fit="true"] {
+    font-size: calc(1em * var(--pdf-formula-scale, 1)) !important;
+  }
+
   .markdown-code-scroller,
   .markdown-table-wrapper,
   .katex-display {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
     overflow: visible !important;
   }
 
@@ -116,6 +159,7 @@
 
   .markdown-code-block {
     min-width: 0 !important;
+    max-width: 100% !important;
     border-radius: 0 !important;
     background: transparent !important;
     color: #000 !important;
@@ -129,6 +173,8 @@
   }
 
   .markdown-rendered-document table {
+    width: 100% !important;
+    max-width: 100% !important;
     table-layout: auto !important;
     font-size: 9pt;
   }
@@ -156,5 +202,40 @@
     border-color: #4d4d4d !important;
     background: #fff !important;
     color: #000 !important;
+  }
+
+  .reader-preview-scroll[data-pdf-allow-global-scaling="true"]
+    :is(.markdown-code-scroller, .markdown-table-wrapper, .katex-display) {
+    width: max-content !important;
+    max-width: none !important;
+  }
+
+  .reader-preview-scroll[data-pdf-allow-global-scaling="true"] .markdown-code-block {
+    min-width: max-content !important;
+    max-width: none !important;
+    white-space: pre !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .reader-preview-scroll[data-pdf-allow-global-scaling="true"]
+    .markdown-rendered-document
+    table {
+    width: max-content !important;
+    max-width: none !important;
+    font-size: inherit !important;
+  }
+
+  .reader-preview-scroll[data-pdf-allow-global-scaling="true"]
+    .markdown-rendered-document
+    :is(th, td) {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .reader-preview-scroll[data-pdf-allow-global-scaling="true"]
+    .markdown-rendered-document
+    img {
+    max-width: none !important;
   }
 }

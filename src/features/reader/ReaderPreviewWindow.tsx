@@ -49,6 +49,7 @@ import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
 import { startPdfExport } from "../export-pdf/export-pdf.ts";
 import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
 import { createPdfExportApi } from "../export-pdf/pdf-export-api.ts";
+import { preparePdfPrintLayout } from "../export-pdf/pdf-local-fit.ts";
 import {
   addReaderNotification,
   closeReaderNotification as closeReaderNotificationState,
@@ -933,11 +934,17 @@ export function ReaderPreviewWindow({
     setIsPdfExportPreparing(true);
 
     try {
+      const { pdfAllowGlobalScaling } = await settingsApi.getReaderSettings();
       const result = await startPdfExport({
         awaitReadiness: () =>
           waitForPdfExportReadiness({
             document,
             root,
+          }),
+        prepareLayout: () =>
+          preparePdfPrintLayout({
+            root,
+            allowGlobalScaling: pdfAllowGlobalScaling,
           }),
         exportPdf: () => pdfExportApi.exportPdf(file.path),
       });
@@ -1221,12 +1228,14 @@ type ScrollablePanelProps = {
 };
 
 type ScrollChromeState = ScrollChromeMetrics & {
+  hasScrollBelow: boolean;
   isDragging: boolean;
   isVisible: boolean;
 };
 
 const defaultScrollChromeState: ScrollChromeState = {
   canScroll: false,
+  hasScrollBelow: false,
   isDragging: false,
   isVisible: false,
   maxScrollTop: 0,
@@ -1280,6 +1289,8 @@ function ScrollablePanel({
 
     setChromeState((current) => ({
       ...metrics,
+      hasScrollBelow:
+        metrics.canScroll && scroller.scrollTop < metrics.maxScrollTop - 1,
       isDragging: current.isDragging,
       isVisible: current.isVisible && metrics.canScroll,
     }));
@@ -1419,6 +1430,7 @@ function ScrollablePanel({
       data-hidden={hiddenFromView}
       data-scrollbar-visible={chromeState.isVisible}
       data-scrolled-from-top={chromeState.thumbTop > 0}
+      data-has-scroll-below={chromeState.hasScrollBelow}
       data-dragging-scrollbar={chromeState.isDragging}
     >
       <div

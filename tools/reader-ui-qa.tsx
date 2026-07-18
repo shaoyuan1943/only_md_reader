@@ -181,6 +181,12 @@ const content = [
     (_, index) => `Paragraph ${index + 1}: scrolling content remains readable.`,
   ),
   "",
+  ...Array.from({ length: 36 }, (_, index) => [
+    `## Scroll Fade Outline Section ${String(index + 1).padStart(2, "0")}`,
+    "",
+    `Outline overflow fixture paragraph ${index + 1}.`,
+    "",
+  ]).flat(),
   "[^reader-note]: Reader footnote target used to verify in-document anchor navigation and backlink behavior.",
 ].join("\n");
 

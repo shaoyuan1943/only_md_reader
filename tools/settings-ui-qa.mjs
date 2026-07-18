@@ -19,6 +19,14 @@ const screenshotPath = resolve(
   process.env.TEMP ?? repoRoot,
   "only-md-reader-settings-ui-qa.png",
 );
+const highDpiScreenshotPath = resolve(
+  process.env.TEMP ?? repoRoot,
+  "only-md-reader-settings-ui-high-dpi-qa.png",
+);
+const darkDropdownScreenshotPath = resolve(
+  process.env.TEMP ?? repoRoot,
+  "only-md-reader-settings-ui-dark-dropdown-qa.png",
+);
 
 async function main() {
   const viteProcess = await ensureViteServer();
@@ -67,7 +75,7 @@ async function main() {
     await waitForDomContentLoaded(cdp);
     await waitForExpression(
       cdp,
-      "document.querySelectorAll('.custom-select').length === 2",
+      "document.querySelectorAll('.custom-select').length === 2 && Boolean(document.querySelector('.pdf-auto-scale-toggle'))",
       10_000,
     );
 
@@ -80,6 +88,10 @@ async function main() {
 
     assert.equal(health.title, "Only MD Reader Settings QA");
     assert.ok(health.bodyText.length > 0, "Settings QA page rendered blank content");
+    assert.match(
+      health.bodyText,
+      /超宽内容可能触发整页缩小，导致不同文件字号显示不同/,
+    );
     assert.equal(health.hasViteOverlay, false);
     assert.deepEqual(health.consoleErrors, []);
 
@@ -100,6 +112,7 @@ async function main() {
       const track = document.querySelector(".select-menu-scrollbar");
       const thumb = document.querySelector(".select-menu-scrollbar-thumb");
       const firstOption = document.querySelector(".select-option");
+      const frame = document.querySelector(".settings-window-frame");
       const selectedOption = document.querySelector(
         '.select-option[data-selected="true"]',
       );
@@ -110,6 +123,13 @@ async function main() {
       const optionRect = firstOption.getBoundingClientRect();
       const styles = getComputedStyle(scroller);
       const menuStyles = getComputedStyle(menu);
+      const frameStyles = getComputedStyle(frame);
+      const rootStyles = getComputedStyle(document.documentElement);
+      const shadowProbe = document.createElement("div");
+      shadowProbe.style.boxShadow = "var(--dropdown-shadow)";
+      document.body.append(shadowProbe);
+      const computedDropdownShadow = getComputedStyle(shadowProbe).boxShadow;
+      shadowProbe.remove();
       const scrollerStyles = getComputedStyle(scroller);
       const hotzoneStyles = getComputedStyle(hotzone);
       const optionStyles = getComputedStyle(firstOption);
@@ -120,7 +140,16 @@ async function main() {
         canScroll: menu?.getAttribute("data-can-scroll"),
         scrollHeight: scroller?.scrollHeight,
         clientHeight: scroller?.clientHeight,
+        optionHeight: optionRect.height,
+        visibleOptionCount:
+          scroller?.clientHeight && optionRect.height
+            ? scroller.clientHeight / optionRect.height
+            : null,
         menuPadding: menuStyles.padding,
+        menuBoxShadow: menuStyles.boxShadow,
+        frameBoxShadow: frameStyles.boxShadow,
+        dropdownShadow: rootStyles.getPropertyValue("--dropdown-shadow").trim(),
+        computedDropdownShadow,
         optionInsetLeft: optionRect.left - menuRect.left,
         optionInsetRight: menuRect.right - optionRect.right,
         optionPadding: optionStyles.padding,
@@ -128,6 +157,9 @@ async function main() {
         selectedOptionBackground: selectedOptionStyles.backgroundColor,
         scrollbarWidth: styles.scrollbarWidth,
         hotzoneOpacity: hotzoneStyles.opacity,
+        hotzoneCursor: hotzoneStyles.cursor,
+        trackCursor: getComputedStyle(track).cursor,
+        thumbCursor: thumbStyles.cursor,
         thumbHeight: thumbStyles.height,
         hasThumb: Boolean(thumb),
         points: {
@@ -145,13 +177,21 @@ async function main() {
     assert.equal(scrollCheck.canScroll, "true");
     assert.ok(scrollCheck.scrollHeight > scrollCheck.clientHeight);
     assert.equal(scrollCheck.menuPadding, "0px");
+    assert.ok(
+      scrollCheck.menuBoxShadow.startsWith(scrollCheck.computedDropdownShadow),
+    );
     assert.ok(Math.abs(scrollCheck.optionInsetLeft) < 1);
     assert.ok(Math.abs(scrollCheck.optionInsetRight) < 1);
     assert.equal(scrollCheck.optionPadding, "0px 42px 0px 18px");
     assert.equal(scrollCheck.scrollerPaddingRight, "0px");
+    assert.equal(scrollCheck.optionHeight, 42);
+    assert.equal(scrollCheck.visibleOptionCount, 4);
     assert.notEqual(scrollCheck.selectedOptionBackground, "rgba(0, 0, 0, 0)");
     assert.equal(scrollCheck.scrollbarWidth, "none");
     assert.equal(scrollCheck.hotzoneOpacity, "0");
+    assert.equal(scrollCheck.hotzoneCursor, "default");
+    assert.equal(scrollCheck.trackCursor, "default");
+    assert.equal(scrollCheck.thumbCursor, "default");
     assert.notEqual(scrollCheck.thumbHeight, "0px");
 
     await dispatchMouse(cdp, "mouseMoved", {
@@ -218,10 +258,14 @@ async function main() {
         getComputedStyle(document.querySelector(".select-menu-scrollbar-hotzone"))
           .opacity,
       ),
+      thumbCursor: getComputedStyle(
+        document.querySelector(".select-menu-scrollbar-thumb"),
+      ).cursor,
     }));
 
     assert.equal(dragPressCheck.isDragging, true);
     assert.ok(dragPressCheck.hotzoneOpacity > 0.9);
+    assert.equal(dragPressCheck.thumbCursor, "default");
 
     await dispatchMouse(cdp, "mouseMoved", {
       buttons: 1,
@@ -288,6 +332,106 @@ async function main() {
     assert.equal(roundtrip.bodyLabel, "Maple Mono NF CN");
     assert.equal(roundtrip.codeLabel, "Maple Mono NF CN");
 
+    const pdfToggleRestingCheck = await evaluate(cdp, () => {
+      const toggle = document.querySelector(".pdf-auto-scale-toggle");
+      const style = toggle ? getComputedStyle(toggle) : null;
+      const rect = toggle?.getBoundingClientRect();
+
+      function resolveColor(value) {
+        const probe = document.createElement("span");
+        probe.style.color = value;
+        document.body.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      }
+
+      return {
+        beforePressed: toggle?.getAttribute("aria-pressed"),
+        backgroundColor: style?.backgroundColor,
+        borderRadius: style?.borderRadius,
+        boxShadow: style?.boxShadow,
+        normalColor: style?.color,
+        controlBorderColor: resolveColor("var(--control-border)"),
+        textSecondaryColor: resolveColor("var(--text-secondary)"),
+        controlFocusBorderColor: resolveColor("var(--control-focus-border)"),
+        switchTrackOnColor: resolveColor("var(--switch-track-on)"),
+        centerX: rect ? rect.left + rect.width / 2 : null,
+        centerY: rect ? rect.top + rect.height / 2 : null,
+      };
+    });
+
+    assert.equal(pdfToggleRestingCheck.beforePressed, "false");
+    assert.equal(pdfToggleRestingCheck.backgroundColor, "rgba(0, 0, 0, 0)");
+    assert.equal(pdfToggleRestingCheck.borderRadius, "0px");
+    assert.equal(pdfToggleRestingCheck.boxShadow, "none");
+    assert.equal(
+      pdfToggleRestingCheck.normalColor,
+      pdfToggleRestingCheck.textSecondaryColor,
+    );
+    assert.equal(typeof pdfToggleRestingCheck.centerX, "number");
+    assert.equal(typeof pdfToggleRestingCheck.centerY, "number");
+
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: pdfToggleRestingCheck.centerX,
+      y: pdfToggleRestingCheck.centerY,
+    });
+    await evaluate(cdp, async () => {
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+    });
+
+    const pdfToggleHoverCheck = await evaluate(cdp, () => {
+      const toggle = document.querySelector(".pdf-auto-scale-toggle");
+      return {
+        isHovered: toggle?.matches(":hover"),
+        color: toggle ? getComputedStyle(toggle).color : null,
+      };
+    });
+
+    assert.equal(pdfToggleHoverCheck.isHovered, true);
+    assert.equal(
+      pdfToggleHoverCheck.color,
+      pdfToggleRestingCheck.controlFocusBorderColor,
+    );
+
+    const pdfToggleCheck = await evaluate(cdp, async () => {
+      const toggle = document.querySelector(".pdf-auto-scale-toggle");
+      const row = document.querySelector(".settings-row-pdf");
+      const panel = row?.closest(".settings-panel");
+
+      toggle?.click();
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+
+      const rowRect = row?.getBoundingClientRect();
+      const panelRect = panel?.getBoundingClientRect();
+      const visibleIcon = [...(toggle?.querySelectorAll("svg") ?? [])].find(
+        (icon) => getComputedStyle(icon).display !== "none",
+      );
+
+      return {
+        afterPressed: toggle?.getAttribute("aria-pressed"),
+        pressedColor: toggle ? getComputedStyle(toggle).color : null,
+        visibleIconClass: visibleIcon?.getAttribute("class"),
+        rowInsidePanel:
+          Boolean(rowRect) &&
+          Boolean(panelRect) &&
+          rowRect.left >= panelRect.left &&
+          rowRect.right <= panelRect.right &&
+          rowRect.top >= panelRect.top &&
+          rowRect.bottom <= panelRect.bottom,
+        lastPatch: window.__qaSettingsPatches.at(-1),
+      };
+    });
+
+    assert.equal(pdfToggleCheck.afterPressed, "true");
+    assert.equal(pdfToggleCheck.pressedColor, pdfToggleRestingCheck.switchTrackOnColor);
+    assert.equal(pdfToggleCheck.visibleIconClass, "toggle-icon-on");
+    assert.equal(pdfToggleCheck.rowInsidePanel, true);
+    assert.deepEqual(pdfToggleCheck.lastPatch, { pdfAllowGlobalScaling: true });
+
     const screenshot = await cdp.send("Page.captureScreenshot", {
       format: "png",
       fromSurface: true,
@@ -295,18 +439,197 @@ async function main() {
     await mkdir(dirname(screenshotPath), { recursive: true });
     await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
 
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 600,
+      height: 427,
+      deviceScaleFactor: 1.5,
+      mobile: false,
+    });
+    await cdp.send("Page.navigate", { url: qaUrl });
+    await waitForDomContentLoaded(cdp);
+    await waitForExpression(
+      cdp,
+      "document.querySelectorAll('.custom-select').length === 2 && Boolean(document.querySelector('.pdf-auto-scale-toggle'))",
+      10_000,
+    );
+
+    const highDpiLayoutCheck = await evaluate(cdp, () => {
+      const titleRect = document
+        .querySelector(".settings-window-title")
+        ?.getBoundingClientRect();
+      const themeLabelRect = document
+        .querySelector(".settings-label")
+        ?.getBoundingClientRect();
+      const pdfRowRect = document
+        .querySelector(".settings-row-pdf")
+        ?.getBoundingClientRect();
+      const versionRect = document
+        .querySelector(".settings-version")
+        ?.getBoundingClientRect();
+      const frameRect = document
+        .querySelector(".settings-window-frame")
+        ?.getBoundingClientRect();
+
+      return {
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        titleToThemeGap:
+          titleRect && themeLabelRect ? themeLabelRect.top - titleRect.bottom : null,
+        pdfRowBottom: pdfRowRect?.bottom,
+        versionTop: versionRect?.top,
+        versionBottom: versionRect?.bottom,
+        frameBottom: frameRect?.bottom,
+      };
+    });
+
+    const dropdownStackingCheck = await evaluate(cdp, async () => {
+      const title = document.querySelector(".settings-window-title");
+      const panel = document.querySelector(".settings-panel");
+      const lightThemeButton = document.querySelector(
+        ".settings-segmented button:first-child",
+      );
+      const codeSelect = document.querySelectorAll(".custom-select")[1];
+
+      lightThemeButton.click();
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      codeSelect.open = true;
+      codeSelect.dispatchEvent(new ToggleEvent("toggle"));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+
+      const menu = codeSelect.querySelector(".select-menu");
+      const titleRect = title.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const menuBoxShadow = getComputedStyle(menu).boxShadow;
+      const dropdownShadow = getComputedStyle(document.documentElement)
+        .getPropertyValue("--dropdown-shadow")
+        .trim();
+      const shadowProbe = document.createElement("div");
+      shadowProbe.style.boxShadow = "var(--dropdown-shadow)";
+      document.body.append(shadowProbe);
+      const computedDropdownShadow = getComputedStyle(shadowProbe).boxShadow;
+      shadowProbe.remove();
+      const titleCenterX = titleRect.left + titleRect.width / 2;
+      const titleCenterY = titleRect.top + titleRect.height / 2;
+      const topElement = document.elementFromPoint(titleCenterX, titleCenterY);
+
+      return {
+        titleZIndex: getComputedStyle(title).zIndex,
+        titleVisibility: getComputedStyle(title).visibility,
+        panelZIndex: getComputedStyle(panel).zIndex,
+        effectiveTheme: document.documentElement.dataset.themeEffectiveMode,
+        menuUsesDropdownShadow: menuBoxShadow.startsWith(computedDropdownShadow),
+        menuOverlapsTitle:
+          menuRect.top < titleRect.bottom && menuRect.bottom > titleRect.top,
+        titleIsTopElement: topElement === title || Boolean(title.contains(topElement)),
+      };
+    });
+
+    const highDpiScreenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    await writeFile(
+      highDpiScreenshotPath,
+      Buffer.from(highDpiScreenshot.data, "base64"),
+    );
+
+    assert.equal(highDpiLayoutCheck.viewportWidth, 600);
+    assert.equal(highDpiLayoutCheck.viewportHeight, 427);
+    assert.equal(typeof highDpiLayoutCheck.titleToThemeGap, "number");
+    assert.equal(typeof highDpiLayoutCheck.pdfRowBottom, "number");
+    assert.equal(typeof highDpiLayoutCheck.versionTop, "number");
+    assert.equal(typeof highDpiLayoutCheck.versionBottom, "number");
+    assert.equal(typeof highDpiLayoutCheck.frameBottom, "number");
+    assert.ok(highDpiLayoutCheck.titleToThemeGap <= 48);
+    assert.ok(
+      highDpiLayoutCheck.pdfRowBottom <= highDpiLayoutCheck.versionTop,
+      JSON.stringify(highDpiLayoutCheck),
+    );
+    assert.ok(highDpiLayoutCheck.versionBottom <= highDpiLayoutCheck.frameBottom);
+    assert.equal(dropdownStackingCheck.titleZIndex, "4");
+    assert.equal(dropdownStackingCheck.titleVisibility, "hidden");
+    assert.equal(dropdownStackingCheck.panelZIndex, "5");
+    assert.equal(dropdownStackingCheck.effectiveTheme, "light");
+    assert.equal(dropdownStackingCheck.menuUsesDropdownShadow, true);
+    assert.equal(dropdownStackingCheck.menuOverlapsTitle, true);
+    assert.equal(dropdownStackingCheck.titleIsTopElement, false);
+
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 856,
+      height: 430,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+
+    const darkDropdownCheck = await evaluate(cdp, async () => {
+      document
+        .querySelector(".settings-segmented button:nth-child(2)")
+        .click();
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+
+      const codeSelect = document.querySelectorAll(".custom-select")[1];
+      codeSelect.open = true;
+      codeSelect.dispatchEvent(new ToggleEvent("toggle"));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+
+      const menuBoxShadow = getComputedStyle(
+        codeSelect.querySelector(".select-menu"),
+      ).boxShadow;
+      const dropdownShadow = getComputedStyle(document.documentElement)
+        .getPropertyValue("--dropdown-shadow")
+        .trim();
+      const shadowProbe = document.createElement("div");
+      shadowProbe.style.boxShadow = "var(--dropdown-shadow)";
+      document.body.append(shadowProbe);
+      const computedDropdownShadow = getComputedStyle(shadowProbe).boxShadow;
+      shadowProbe.remove();
+
+      return {
+        effectiveTheme: document.documentElement.dataset.themeEffectiveMode,
+        menuBoxShadow,
+        dropdownShadow,
+        menuUsesDropdownShadow: menuBoxShadow.startsWith(computedDropdownShadow),
+      };
+    });
+
+    assert.equal(darkDropdownCheck.effectiveTheme, "dark");
+    assert.equal(darkDropdownCheck.menuUsesDropdownShadow, true);
+    assert.match(darkDropdownCheck.menuBoxShadow, /rgba\(0, 0, 0, 0\.72\)/);
+    assert.match(darkDropdownCheck.menuBoxShadow, /rgba\(0, 0, 0, 0\.58\)/);
+
+    const darkDropdownScreenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    await writeFile(
+      darkDropdownScreenshotPath,
+      Buffer.from(darkDropdownScreenshot.data, "base64"),
+    );
+
     console.log(
       JSON.stringify(
         {
           status: "passed",
           url: qaUrl,
           screenshotPath,
+          highDpiScreenshotPath,
+          darkDropdownScreenshotPath,
           scrollCheck,
           hoverCheck,
           trackClickCheck,
           dragPressCheck,
           dragCheck,
           patches: roundtrip.patches,
+          pdfToggleRestingCheck,
+          pdfToggleHoverCheck,
+          pdfToggleCheck,
+          highDpiLayoutCheck,
+          dropdownStackingCheck,
+          darkDropdownCheck,
         },
         null,
         2,

@@ -12,6 +12,7 @@ export type ReaderSettings = {
   contentMaxWidth: number;
   lightCodeTheme: string;
   darkCodeTheme: string;
+  pdfAllowGlobalScaling: boolean;
 };
 
 export type ReaderSettingsPatch = Partial<Omit<ReaderSettings, "schemaVersion">>;
@@ -28,6 +29,7 @@ export const defaultReaderSettings: ReaderSettings = {
   contentMaxWidth: 860,
   lightCodeTheme: "Eva Light Bold",
   darkCodeTheme: "Eva Dark Bold",
+  pdfAllowGlobalScaling: false,
 };
 
 export function mergeReaderSettingsPatch(
