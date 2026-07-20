@@ -108,6 +108,37 @@ void test("PDF export notifications expose a compact close control", () => {
   assert.equal(getCssPxDeclaration(closeIconRule, "height"), 16);
   assert.equal(getCssPxDeclaration(titleRule, "padding-right"), 28);
   assert.equal(getCssPxDeclaration(detailRule, "padding-right"), 28);
+
+  const closeHandler = readerWindowTsx.match(
+    /const closeReaderNotification = useCallback\(\(id: string\) => \{(?<body>[\s\S]*?)\n {2}\}, \[\]\);/,
+  );
+  assert.ok(
+    closeHandler?.groups?.body,
+    "Missing closeReaderNotification callback body",
+  );
+
+  const closeHandlerBody = closeHandler.groups.body;
+  const clearTimerIndex = closeHandlerBody.indexOf("window.clearTimeout(successTimer)");
+  const deleteTimerIndex = closeHandlerBody.indexOf(
+    "readerNotificationSuccessTimersRef.current.delete(id)",
+  );
+  const closeStateIndex = closeHandlerBody.indexOf(
+    "closeReaderNotificationState(current, id)",
+  );
+
+  assert.match(
+    closeHandlerBody,
+    /readerNotificationSuccessTimersRef\.current\.get\(id\)/,
+  );
+  assert.ok(clearTimerIndex >= 0, "Success timer must be cleared when closed manually");
+  assert.ok(
+    deleteTimerIndex > clearTimerIndex,
+    "Success timer must be deleted after clear",
+  );
+  assert.ok(
+    closeStateIndex > deleteTimerIndex,
+    "Success timer cleanup must happen before closing notification state",
+  );
 });
 const readBootWindowEntry = () => {
   const bootWindowEntryUrl = new URL("./boot-window.ts", import.meta.url);

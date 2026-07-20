@@ -245,28 +245,98 @@ async function main() {
       outputNotification,
       Buffer.from(notificationScreenshot.data, "base64"),
     );
-    const successCloseStartedAt = Date.now();
-    const successClose = await cdp.send("Runtime.evaluate", {
+
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"]') === null`,
+    );
+    await cdp.send("Runtime.evaluate", {
       expression: `(() => {
-        const notification = document.querySelector('.reader-preview-notification[data-kind="success"]');
-        const closeButton = notification?.querySelector('.reader-preview-notification-close-button');
-        closeButton?.click();
-        return Boolean(notification && closeButton);
+        const originalSetTimeout = window.setTimeout;
+        const originalClearTimeout = window.clearTimeout;
+        const scheduledTimerIds = [];
+        const clearedTimerIds = [];
+        window.__qaNotificationTimerRecorder = {
+          clearedTimerIds,
+          originalClearTimeout,
+          originalSetTimeout,
+          scheduledTimerIds,
+        };
+        window.setTimeout = function (handler, delay, ...args) {
+          const timerId = Reflect.apply(originalSetTimeout, window, [handler, delay, ...args]);
+          if (delay === 3000) scheduledTimerIds.push(timerId);
+          return timerId;
+        };
+        window.clearTimeout = function (timerId) {
+          if (scheduledTimerIds.includes(timerId)) clearedTimerIds.push(timerId);
+          return Reflect.apply(originalClearTimeout, window, [timerId]);
+        };
       })()`,
+    });
+
+    const exportButtonClick = await dispatchMouseClick(
+      cdp,
+      ".reader-preview-pdf-export-button",
+    );
+    assert.equal(exportButtonClick.width, 32);
+    assert.equal(exportButtonClick.height, 32);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfFileName)}`,
+    );
+    const newSuccessObservedAt = Date.now();
+    const timerAtCreation = await cdp.send("Runtime.evaluate", {
+      expression: `(() => ({
+        scheduledTimerIds: [...window.__qaNotificationTimerRecorder.scheduledTimerIds],
+      }))()`,
       returnByValue: true,
     });
-    assert.equal(successClose.result.value, true);
+    assert.equal(timerAtCreation.result.value.scheduledTimerIds.length, 1);
+    const [successAutoCloseTimerId] = timerAtCreation.result.value.scheduledTimerIds;
+
+    const successCloseStartedAt = Date.now();
+    const successCloseButtonClick = await dispatchMouseClick(
+      cdp,
+      '.reader-preview-notification[data-kind="success"] .reader-preview-notification-close-button',
+    );
+    assert.equal(successCloseButtonClick.width, 24);
+    assert.equal(successCloseButtonClick.height, 24);
     await waitForExpression(
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="success"]')?.getAttribute('data-closing') === 'true'`,
+    );
+    const successClosingStartedInMs = Date.now() - successCloseStartedAt;
+    assert.ok(
+      successClosingStartedInMs <= 500,
+      "coordinate click must start closing the fresh success notification within 500ms",
     );
     await waitForExpression(
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="success"]') === null`,
     );
+    const successRemovedInMs = Date.now() - newSuccessObservedAt;
     assert.ok(
-      Date.now() - successCloseStartedAt < 3_000,
-      "manual success close must remove the notification before its auto-close timer",
+      successRemovedInMs <= 1_000,
+      "fresh success notification must be removed well before its 3000ms auto-close",
+    );
+    const timerRecorder = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const recorder = window.__qaNotificationTimerRecorder;
+        const result = {
+          clearedTimerIds: [...recorder.clearedTimerIds],
+          scheduledTimerIds: [...recorder.scheduledTimerIds],
+        };
+        window.setTimeout = recorder.originalSetTimeout;
+        window.clearTimeout = recorder.originalClearTimeout;
+        delete window.__qaNotificationTimerRecorder;
+        return result;
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(timerRecorder.result.value.scheduledTimerIds.length, 1);
+    assert.ok(
+      timerRecorder.result.value.clearedTimerIds.includes(successAutoCloseTimerId),
+      "manual close must clear the exact 3000ms timer created for the fresh notification",
     );
 
     await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error` });
@@ -309,16 +379,12 @@ async function main() {
       longErrorNotification.result.value.scrollWidth >
         longErrorNotification.result.value.clientWidth,
     );
-    const errorClose = await cdp.send("Runtime.evaluate", {
-      expression: `(() => {
-        const notification = document.querySelector('.reader-preview-notification[data-kind="error"]');
-        const closeButton = notification?.querySelector('.reader-preview-notification-close-button');
-        closeButton?.click();
-        return Boolean(notification && closeButton);
-      })()`,
-      returnByValue: true,
-    });
-    assert.equal(errorClose.result.value, true);
+    const errorCloseButtonClick = await dispatchMouseClick(
+      cdp,
+      '.reader-preview-notification[data-kind="error"] .reader-preview-notification-close-button',
+    );
+    assert.equal(errorCloseButtonClick.width, 24);
+    assert.equal(errorCloseButtonClick.height, 24);
     await waitForExpression(
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAttribute('data-closing') === 'true'`,
@@ -568,7 +634,8 @@ async function main() {
         .match(/\/Type\s*\/Page\b/g) ?? []
     ).length;
     assert.ok(pageCount >= 2, `expected multi-page PDF, got ${pageCount} pages`);
-    console.log(
+    writeFileSync(
+      1,
       JSON.stringify(
         {
           status: "passed",
@@ -581,10 +648,18 @@ async function main() {
           highDpiBytes: statSync(outputHighDpiPdf).size,
           fixedOverwideLayout: fixedOverwideLayout.result.value,
           globalScalingLayout: globalScalingLayout.result.value,
+          notificationDismissal: {
+            clearedTimerIds: timerRecorder.result.value.clearedTimerIds,
+            exportButtonClick,
+            successAutoCloseTimerId,
+            successCloseButtonClick,
+            successClosingStartedInMs,
+            successRemovedInMs,
+          },
         },
         null,
         2,
-      ),
+      ) + "\n",
     );
   } finally {
     chromeProcess?.kill();
@@ -674,6 +749,49 @@ async function waitForExpression(cdp, expression) {
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
+async function dispatchMouseClick(cdp, selector) {
+  const center = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      const rect = element?.getBoundingClientRect();
+      if (!element || !rect || rect.width === 0 || rect.height === 0) return null;
+      return {
+        height: Math.round(rect.height),
+        width: Math.round(rect.width),
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    })()`,
+    returnByValue: true,
+  });
+  assert.ok(center.result.value, `Missing clickable element: ${selector}`);
+
+  const { x, y } = center.result.value;
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x,
+    y,
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+    type: "mousePressed",
+    x,
+    y,
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    button: "left",
+    buttons: 0,
+    clickCount: 1,
+    type: "mouseReleased",
+    x,
+    y,
+  });
+
+  return center.result.value;
 }
 
 class CdpConnection {
