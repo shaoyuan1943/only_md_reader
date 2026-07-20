@@ -18,6 +18,10 @@ const outputPreview = resolve(
   root,
   "output/playwright/pdf-export-qa-print-preview.png",
 );
+const outputNotification = resolve(
+  root,
+  "output/playwright/pdf-export-notification.png",
+);
 const qaUrl = "http://127.0.0.1:1420/tools/reader-ui-qa.html";
 const chromePath = resolve(
   process.env.LOCALAPPDATA ?? "",
@@ -57,6 +61,12 @@ async function main() {
     const cdp = await CdpConnection.connect(page.webSocketDebuggerUrl);
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
     await cdp.send("Page.navigate", { url: qaUrl });
     await waitForExpression(
       cdp,
@@ -98,7 +108,8 @@ async function main() {
     });
     await waitForExpression(
       cdp,
-      "document.querySelector('.reader-preview-notification[data-kind=\"error\"]')?.textContent?.includes('PDF 导出只能在桌面应用中使用。') === true",
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-title')?.textContent === 'PDF导出失败！' &&
+       document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent?.includes('PDF 导出只能在桌面应用中使用。') === true`,
     );
     const notification = await cdp.send("Runtime.evaluate", {
       expression: `(() => {
@@ -108,12 +119,18 @@ async function main() {
         const shell = document.querySelector('.reader-preview-shell');
         const style = notification ? getComputedStyle(notification) : null;
         const stackStyle = notificationStack ? getComputedStyle(notificationStack) : null;
+        const notificationRect = notification?.getBoundingClientRect();
+        const stackRect = notificationStack?.getBoundingClientRect();
         return {
           background: style?.backgroundColor,
           borderRadius: style?.borderRadius,
+          detail: notification?.querySelector('.reader-preview-notification-detail')?.textContent,
           fontFamily: style?.fontFamily,
+          notificationWidth: Math.round(notificationRect?.width ?? 0),
           stackBottom: stackStyle?.bottom,
           stackLeft: stackStyle?.left,
+          stackWidth: Math.round(stackRect?.width ?? 0),
+          title: notification?.querySelector('.reader-preview-notification-title')?.textContent,
           readingFontFamily: readingDocument ? getComputedStyle(readingDocument).fontFamily : '',
           printCalls: window.__qaPdfPrintCalls,
           shellBackground: shell ? getComputedStyle(shell).backgroundColor : '',
@@ -123,8 +140,12 @@ async function main() {
     });
     assert.equal(interaction.result.value.shortcutPrevented, true);
     assert.equal(notification.result.value.printCalls, 0);
-    assert.equal(notification.result.value.stackLeft, "24px");
+    assert.equal(notification.result.value.title, "PDF导出失败！");
+    assert.equal(notification.result.value.detail, "PDF 导出只能在桌面应用中使用。");
+    assert.equal(notification.result.value.stackLeft, "35px");
     assert.equal(notification.result.value.stackBottom, "24px");
+    assert.equal(notification.result.value.stackWidth, 302);
+    assert.equal(notification.result.value.notificationWidth, 302);
     assert.equal(notification.result.value.borderRadius, "14px");
     assert.equal(
       notification.result.value.background,
@@ -135,6 +156,45 @@ async function main() {
       notification.result.value.readingFontFamily,
     );
 
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=success` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-title')?.textContent === 'PDF文件已导出！' &&
+       document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-detail')?.textContent === 'reader-ui-qa (2).pdf'`,
+    );
+    const successNotification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const success = document.querySelector('.reader-preview-notification[data-kind="success"]');
+        return {
+          title: success?.querySelector('.reader-preview-notification-title')?.textContent,
+          detail: success?.querySelector('.reader-preview-notification-detail')?.textContent,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.deepEqual(successNotification.result.value, {
+      title: "PDF文件已导出！",
+      detail: "reader-ui-qa (2).pdf",
+    });
+    const notificationScreenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    mkdirSync(dirname(outputNotification), { recursive: true });
+    writeFileSync(
+      outputNotification,
+      Buffer.from(notificationScreenshot.data, "base64"),
+    );
+
+    await cdp.send("Emulation.clearDeviceMetricsOverride");
     await cdp.send("Emulation.setEmulatedMedia", { media: "print" });
 
     const printLayout = await cdp.send("Runtime.evaluate", {

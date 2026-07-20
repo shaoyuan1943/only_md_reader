@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { startPdfExport } from "./export-pdf.ts";
+import { getPdfExportFileName, startPdfExport } from "./export-pdf.ts";
+
+void test("extracts only the PDF file name from native output paths", () => {
+  assert.equal(
+    getPdfExportFileName(String.raw`E:\notes\readme (2).pdf`),
+    "readme (2).pdf",
+  );
+  assert.equal(getPdfExportFileName("/Users/name/notes/readme.pdf"), "readme.pdf");
+});
 
 void test("exports exactly once after readiness succeeds", async () => {
   let exports = 0;

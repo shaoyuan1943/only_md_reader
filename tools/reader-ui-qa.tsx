@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "../src/App.css";
 import "katex/dist/katex.css";
 import { ReaderPreviewWindow } from "../src/features/reader/ReaderPreviewWindow.tsx";
+import type { PdfExportApi } from "../src/features/export-pdf/pdf-export-api.ts";
 import type {
   SaveWindowStateRequest,
   WindowStateApi,
@@ -190,6 +191,17 @@ const content = [
   "[^reader-note]: Reader footnote target used to verify in-document anchor navigation and backlink behavior.",
 ].join("\n");
 
+const qaPdfExportMode = new URLSearchParams(window.location.search).get("pdfExport");
+const qaPdfExportApi: PdfExportApi | undefined =
+  qaPdfExportMode === "success"
+    ? {
+        exportPdf: () =>
+          Promise.resolve({
+            outputPath: String.raw`E:\notes\reader-ui-qa (2).pdf`,
+          }),
+      }
+    : undefined;
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ReaderPreviewWindow
@@ -201,6 +213,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         fileSize: content.length,
         modifiedAt: "2026-07-02T00:00:00.000Z",
       }}
+      pdfExportApi={qaPdfExportApi}
       settingsApi={qaSettingsApi}
       windowStateApi={qaWindowStateApi}
     />

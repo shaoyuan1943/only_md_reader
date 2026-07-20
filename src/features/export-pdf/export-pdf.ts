@@ -11,6 +11,10 @@ type StartPdfExportOptions = {
   prepareLayout?(this: void): () => void;
 };
 
+export function getPdfExportFileName(outputPath: string): string {
+  return outputPath.split(/[\\/]/).pop() || outputPath;
+}
+
 export async function startPdfExport({
   awaitReadiness,
   exportPdf,

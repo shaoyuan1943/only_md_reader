@@ -46,9 +46,9 @@ import { getRestoreTarget } from "./window-state.ts";
 import type { WindowStateApi } from "./window-state-api.ts";
 import { createWindowStateApi } from "./window-state-api.ts";
 import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
-import { startPdfExport } from "../export-pdf/export-pdf.ts";
+import { getPdfExportFileName, startPdfExport } from "../export-pdf/export-pdf.ts";
 import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
-import { createPdfExportApi } from "../export-pdf/pdf-export-api.ts";
+import { createPdfExportApi, type PdfExportApi } from "../export-pdf/pdf-export-api.ts";
 import { preparePdfPrintLayout } from "../export-pdf/pdf-local-fit.ts";
 import {
   addReaderNotification,
@@ -66,12 +66,13 @@ const SELECTION_COPY_BUTTON_SIZE_PX = 32;
 const TEXT_SELECTION_DRAG_THRESHOLD_PX = 10;
 const PDF_EXPORT_SUCCESS_NOTIFICATION_DURATION_MS = 3_000;
 const READER_NOTIFICATION_EXIT_DURATION_MS = 220;
-const pdfExportApi = createPdfExportApi();
+const defaultPdfExportApi = createPdfExportApi();
 
 type ReaderPreviewWindowProps = {
   file: OpenedMarkdownFile;
   initialWindowState?: WindowState | null;
   onBackToOpenFile?(this: void): void;
+  pdfExportApi?: PdfExportApi;
   windowStateApi?: WindowStateApi;
   settingsApi?: ReturnType<typeof createSettingsApi>;
 };
@@ -131,6 +132,7 @@ export function ReaderPreviewWindow({
   file,
   initialWindowState = null,
   onBackToOpenFile: handleBackToOpenFile,
+  pdfExportApi = defaultPdfExportApi,
   settingsApi = createSettingsApi(),
   windowStateApi = createWindowStateApi(),
 }: ReaderPreviewWindowProps) {
@@ -868,14 +870,15 @@ export function ReaderPreviewWindow({
   }, []);
 
   const showReaderNotification = useCallback(
-    (kind: ReaderNotification["kind"], message: string) => {
+    (kind: ReaderNotification["kind"], title: string, detail: string) => {
       const id = `reader-notification-${Date.now()}-${readerNotificationIdRef.current}`;
       readerNotificationIdRef.current += 1;
       const notification: ReaderNotification = {
+        detail,
         id,
         kind,
-        message,
         isClosing: false,
+        title,
       };
 
       setReaderNotifications((current) => addReaderNotification(current, notification));
@@ -952,15 +955,24 @@ export function ReaderPreviewWindow({
       if (result.kind === "resource-timeout") {
         showReaderNotification(
           "error",
+          "PDF导出失败！",
           "图片尚未加载完成，暂未导出。请检查图片路径或网络后重试。",
         );
       } else if (result.kind === "export-failed") {
-        showReaderNotification("error", result.message);
+        showReaderNotification("error", "PDF导出失败！", result.message);
       } else {
-        showReaderNotification("success", "PDF 已导出。");
+        showReaderNotification(
+          "success",
+          "PDF文件已导出！",
+          getPdfExportFileName(result.outputPath),
+        );
       }
     } catch (error) {
-      showReaderNotification("error", `无法准备 PDF 导出：${getErrorMessage(error)}`);
+      showReaderNotification(
+        "error",
+        "PDF导出失败！",
+        `无法准备 PDF 导出：${getErrorMessage(error)}`,
+      );
     } finally {
       setIsPdfExportPreparing(false);
     }
@@ -1207,7 +1219,12 @@ function ReaderNotificationStack({
           key={notification.id}
           role={notification.kind === "error" ? "alert" : "status"}
         >
-          {notification.message}
+          <span className="reader-preview-notification-title">
+            {notification.title}
+          </span>
+          <span className="reader-preview-notification-detail">
+            {notification.detail}
+          </span>
         </p>
       ))}
     </aside>

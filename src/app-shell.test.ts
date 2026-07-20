@@ -717,7 +717,11 @@ void test("reader window uses floating outline and reading cards without hard di
   );
   assert.match(
     appCss,
-    /\.reader-preview-layout\s*{[^}]*--reader-outline-width:\s*336px;[^}]*--reader-card-gap:\s*30px;[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);[^}]*\bgap:\s*var\(--reader-card-gap\);/s,
+    /\.reader-preview-shell\s*{[^}]*--reader-outline-inline-padding:\s*17px;[^}]*--reader-outline-width:\s*336px;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-layout\s*{[^}]*--reader-card-gap:\s*30px;[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);[^}]*\bgap:\s*var\(--reader-card-gap\);/s,
   );
   assert.match(
     appCss,
@@ -1001,7 +1005,7 @@ void test("reader window implements formal scroll chrome and layered card shadow
 void test("reader outline follows reader html density without top fade covering the first item", () => {
   assert.match(
     appCss,
-    /\.reader-preview-outline-card\s*{[^}]*\bpadding:\s*24px\s+17px\s+20px;/s,
+    /\.reader-preview-outline-card\s*{[^}]*\bpadding:\s*24px\s+var\(--reader-outline-inline-padding\)\s+20px;/s,
   );
   assert.doesNotMatch(appCss, /\.reader-preview-outline-card\s*{[^}]*\bgap:\s*14px;/s);
   assert.match(
@@ -1033,7 +1037,11 @@ void test("reader outline keeps long headings inside a wider fixed visual lane",
   assert.match(readerWindowTsx, /className="reader-preview-outline-item-text"/);
   assert.match(
     appCss,
-    /\.reader-preview-layout\s*{[^}]*--reader-outline-width:\s*336px;[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);/s,
+    /\.reader-preview-shell\s*{[^}]*--reader-outline-inline-padding:\s*17px;[^}]*--reader-outline-width:\s*336px;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-layout\s*{[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);/s,
   );
   assert.match(
     appCss,
