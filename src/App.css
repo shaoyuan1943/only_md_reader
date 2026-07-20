@@ -1156,7 +1156,6 @@ body,
   );
   font-size: 13px;
   line-height: 1.55;
-  overflow-wrap: anywhere;
   pointer-events: auto;
   animation: reader-notification-enter 0.24s ease-out both;
 }
@@ -1164,6 +1163,9 @@ body,
 .reader-preview-notification-title,
 .reader-preview-notification-detail {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reader-preview-notification-title {

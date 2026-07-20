@@ -191,16 +191,24 @@ const content = [
   "[^reader-note]: Reader footnote target used to verify in-document anchor navigation and backlink behavior.",
 ].join("\n");
 
+const qaLongPdfFileName =
+  "reader-ui-qa-document-with-an-intentionally-long-export-file-name (2).pdf";
+const qaLongPdfError =
+  "无法写入目标 PDF 文件，请确认目标目录存在、文件未被其他程序占用且当前账户具有写入权限。";
 const qaPdfExportMode = new URLSearchParams(window.location.search).get("pdfExport");
 const qaPdfExportApi: PdfExportApi | undefined =
   qaPdfExportMode === "success"
     ? {
         exportPdf: () =>
           Promise.resolve({
-            outputPath: String.raw`E:\notes\reader-ui-qa (2).pdf`,
+            outputPath: `E:\\notes\\${qaLongPdfFileName}`,
           }),
       }
-    : undefined;
+    : qaPdfExportMode === "error"
+      ? {
+          exportPdf: () => Promise.reject(new Error(qaLongPdfError)),
+        }
+      : undefined;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

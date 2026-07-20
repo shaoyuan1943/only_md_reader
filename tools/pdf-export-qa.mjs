@@ -23,6 +23,10 @@ const outputNotification = resolve(
   "output/playwright/pdf-export-notification.png",
 );
 const qaUrl = "http://127.0.0.1:1420/tools/reader-ui-qa.html";
+const qaLongPdfFileName =
+  "reader-ui-qa-document-with-an-intentionally-long-export-file-name (2).pdf";
+const qaLongPdfError =
+  "无法写入目标 PDF 文件，请确认目标目录存在、文件未被其他程序占用且当前账户具有写入权限。";
 const chromePath = resolve(
   process.env.LOCALAPPDATA ?? "",
   "ms-playwright",
@@ -168,22 +172,42 @@ async function main() {
     await waitForExpression(
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-title')?.textContent === 'PDF文件已导出！' &&
-       document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-detail')?.textContent === 'reader-ui-qa (2).pdf'`,
+       document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfFileName)}`,
     );
     const successNotification = await cdp.send("Runtime.evaluate", {
       expression: `(() => {
         const success = document.querySelector('.reader-preview-notification[data-kind="success"]');
+        const title = success?.querySelector('.reader-preview-notification-title');
+        const detail = success?.querySelector('.reader-preview-notification-detail');
+        const titleStyle = title ? getComputedStyle(title) : null;
+        const detailStyle = detail ? getComputedStyle(detail) : null;
         return {
-          title: success?.querySelector('.reader-preview-notification-title')?.textContent,
-          detail: success?.querySelector('.reader-preview-notification-detail')?.textContent,
+          title: title?.textContent,
+          detail: detail?.textContent,
+          titleOverflow: titleStyle?.overflow,
+          titleTextOverflow: titleStyle?.textOverflow,
+          titleWhiteSpace: titleStyle?.whiteSpace,
+          detailClientWidth: detail?.clientWidth ?? 0,
+          detailScrollWidth: detail?.scrollWidth ?? 0,
+          detailOverflow: detailStyle?.overflow,
+          detailTextOverflow: detailStyle?.textOverflow,
+          detailWhiteSpace: detailStyle?.whiteSpace,
         };
       })()`,
       returnByValue: true,
     });
-    assert.deepEqual(successNotification.result.value, {
-      title: "PDF文件已导出！",
-      detail: "reader-ui-qa (2).pdf",
-    });
+    assert.equal(successNotification.result.value.title, "PDF文件已导出！");
+    assert.equal(successNotification.result.value.detail, qaLongPdfFileName);
+    assert.equal(successNotification.result.value.titleOverflow, "hidden");
+    assert.equal(successNotification.result.value.titleTextOverflow, "ellipsis");
+    assert.equal(successNotification.result.value.titleWhiteSpace, "nowrap");
+    assert.equal(successNotification.result.value.detailOverflow, "hidden");
+    assert.equal(successNotification.result.value.detailTextOverflow, "ellipsis");
+    assert.equal(successNotification.result.value.detailWhiteSpace, "nowrap");
+    assert.ok(
+      successNotification.result.value.detailScrollWidth >
+        successNotification.result.value.detailClientWidth,
+    );
     const notificationScreenshot = await cdp.send("Page.captureScreenshot", {
       format: "png",
       fromSurface: true,
@@ -192,6 +216,43 @@ async function main() {
     writeFileSync(
       outputNotification,
       Buffer.from(notificationScreenshot.data, "base64"),
+    );
+
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfError)}`,
+    );
+    const longErrorNotification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const detail = document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail');
+        const style = detail ? getComputedStyle(detail) : null;
+        return {
+          detail: detail?.textContent,
+          clientWidth: detail?.clientWidth ?? 0,
+          scrollWidth: detail?.scrollWidth ?? 0,
+          overflow: style?.overflow,
+          textOverflow: style?.textOverflow,
+          whiteSpace: style?.whiteSpace,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(longErrorNotification.result.value.detail, qaLongPdfError);
+    assert.equal(longErrorNotification.result.value.overflow, "hidden");
+    assert.equal(longErrorNotification.result.value.textOverflow, "ellipsis");
+    assert.equal(longErrorNotification.result.value.whiteSpace, "nowrap");
+    assert.ok(
+      longErrorNotification.result.value.scrollWidth >
+        longErrorNotification.result.value.clientWidth,
     );
 
     await cdp.send("Emulation.clearDeviceMetricsOverride");
