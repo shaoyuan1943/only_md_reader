@@ -866,6 +866,13 @@ export function ReaderPreviewWindow({
   };
 
   const closeReaderNotification = useCallback((id: string) => {
+    const successTimer = readerNotificationSuccessTimersRef.current.get(id);
+
+    if (successTimer !== undefined) {
+      window.clearTimeout(successTimer);
+      readerNotificationSuccessTimersRef.current.delete(id);
+    }
+
     setReaderNotifications((current) => closeReaderNotificationState(current, id));
   }, []);
 
@@ -1175,7 +1182,10 @@ export function ReaderPreviewWindow({
           {isOutlineHidden ? <RightArrowIcon /> : <LeftArrowIcon />}
         </button>
       </div>
-      <ReaderNotificationStack notifications={readerNotifications} />
+      <ReaderNotificationStack
+        notifications={readerNotifications}
+        onClose={closeReaderNotification}
+      />
       {selectionCopyBubble ? (
         <button
           className="reader-preview-selection-copy-button"
@@ -1202,8 +1212,10 @@ export function ReaderPreviewWindow({
 
 function ReaderNotificationStack({
   notifications,
+  onClose,
 }: {
   notifications: ReaderNotification[];
+  onClose(this: void, id: string): void;
 }) {
   if (notifications.length === 0) {
     return null;
@@ -1225,6 +1237,18 @@ function ReaderNotificationStack({
           <span className="reader-preview-notification-detail">
             {notification.detail}
           </span>
+          <button
+            className="reader-preview-notification-close-button"
+            type="button"
+            aria-label="关闭通知"
+            title="关闭通知"
+            onClick={() => onClose(notification.id)}
+          >
+            <svg viewBox="0 0 1024 1024" aria-hidden="true">
+              <path d="M859.00288 178.741248c-188.43648-188.471296-495.06304-188.471296-683.49952 0-188.469248 188.432384-188.469248 495.060992 0 683.493376 188.43648 188.473344 495.06304 188.473344 683.49952 0C1047.472128 673.80224 1047.472128 367.173632 859.00288 178.741248zM809.965568 813.19936c-161.41312 161.409024-424.04864 161.376256-585.424896 0-161.409024-161.41312-161.409024-424.011776 0-585.424896 161.376256-161.376256 424.011776-161.409024 585.424896 0C971.341824 389.15072 971.341824 651.8272 809.965568 813.19936z" />
+              <path d="M571.764736 518.862848l154.630144-154.871808c13.508608-13.529088 13.508608-35.463168 0-48.992256-13.508608-13.529088-35.407872-13.529088-48.91648 0l-154.628096 154.86976L362.14784 308.92032c-13.45536-13.473792-35.270656-13.473792-48.726016 0-13.453312 13.477888-13.453312 35.325952 0 48.80384l160.698368 160.950272-168.409088 168.67328c-13.510656 13.529088-13.510656 35.465216 0 48.994304 13.508608 13.529088 35.407872 13.529088 48.914432 0l168.411136-168.675328 160.700416 160.950272c13.45536 13.473792 35.270656 13.473792 48.726016 0 13.45536-13.477888 13.45536-35.325952 0-48.801792L571.764736 518.862848z" />
+            </svg>
+          </button>
         </p>
       ))}
     </aside>

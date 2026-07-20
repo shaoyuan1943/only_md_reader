@@ -1133,6 +1133,7 @@ body,
 }
 
 .reader-preview-notification {
+  position: relative;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
@@ -1163,6 +1164,7 @@ body,
 .reader-preview-notification-title,
 .reader-preview-notification-detail {
   display: block;
+  padding-right: 28px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1170,6 +1172,38 @@ body,
 
 .reader-preview-notification-title {
   font-weight: 700;
+}
+
+.reader-preview-notification-close-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 50%;
+  padding: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.reader-preview-notification-close-button:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.reader-preview-notification-close-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 72%, transparent);
+  outline-offset: 1px;
+}
+
+.reader-preview-notification-close-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .reader-preview-notification[data-kind="error"] {

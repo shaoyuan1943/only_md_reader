@@ -78,6 +78,37 @@ void test("PDF export snapshots the persisted scaling mode for each export", () 
   assert.match(readerWindowTsx, /pdfAllowGlobalScaling/);
   assert.match(readerWindowTsx, /preparePdfPrintLayout/);
 });
+
+void test("PDF export notifications expose a compact close control", () => {
+  assert.match(readerWindowTsx, /aria-label="关闭通知"/);
+  assert.match(readerWindowTsx, /title="关闭通知"/);
+  assert.match(readerWindowTsx, /onClose\(notification\.id\)/);
+  assert.match(
+    readerWindowTsx,
+    /M859\.00288 178\.741248c-188\.43648-188\.471296-495\.06304/,
+  );
+  assert.match(readerWindowTsx, /M571\.764736 518\.862848l154\.630144-154\.871808/);
+
+  const notificationRule = getCssRuleBody(".reader-preview-notification");
+  const closeButtonRule = getCssRuleBody(".reader-preview-notification-close-button");
+  const closeIconRule = getCssRuleBody(".reader-preview-notification-close-button svg");
+  const titleRule = getCssRuleBodyContainingSelector(
+    ".reader-preview-notification-title",
+    "padding-right",
+  );
+  const detailRule = getCssRuleBodyContainingSelector(
+    ".reader-preview-notification-detail",
+    "padding-right",
+  );
+
+  assert.match(notificationRule, /\bposition:\s*relative;/);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "width"), 24);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "height"), 24);
+  assert.equal(getCssPxDeclaration(closeIconRule, "width"), 16);
+  assert.equal(getCssPxDeclaration(closeIconRule, "height"), 16);
+  assert.equal(getCssPxDeclaration(titleRule, "padding-right"), 28);
+  assert.equal(getCssPxDeclaration(detailRule, "padding-right"), 28);
+});
 const readBootWindowEntry = () => {
   const bootWindowEntryUrl = new URL("./boot-window.ts", import.meta.url);
 
