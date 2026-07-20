@@ -606,6 +606,7 @@
   - 活跃错误最多三条；第四条错误出现时最旧错误先进入关闭动画。错误通知不提供重试或操作按钮，只显示失败原因。
   - 验收标准：通知 reducer 单测覆盖最新位置、错误上限和最旧关闭；PDF QA 覆盖左下角位置、圆角、应用背景、阅读字体、打印态隐藏与导出按钮不调用浏览器 `window.print()`。
   - 验证记录：2026-07-16 `pnpm test` 173/173 通过，`pnpm qa:pdf-export` 通过并生成 4 页、195596 bytes 的打印 CSS QA PDF。
+  - 追加修正记录：2026-07-20 PDF 导出通知改为标题与详情两行结构。成功时第一行显示“PDF文件已导出！”，第二行从原生 `outputPath` 提取 PDF 文件名且不显示路径；失败时第一行显示“PDF导出失败！”，第二行保留资源等待、原生写入或准备阶段产生的具体原因。通知栈与大纲卡片扣除水平内边距后的内容区对齐，宽度为 `302px`、左偏移为 `35px`，通知项占满栈宽。回归测试先确认文件名函数、结构化通知类型和两行 DOM/几何断言在旧实现上失败；修复后 `pnpm test`（191/191）、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm qa:pdf-export`、`pnpm qa:reader-ui` 和 `pnpm tauri build --no-bundle --ci` 全部通过。PDF QA 在 `1440×900 @ 1x` 下实际点击并检查成功通知，保存 `output/playwright/pdf-export-notification.png` 后人工核对无路径、裁切或溢出；同一 QA 也验证失败通知与打印态隐藏。新测试 EXE 为 `E:\only_md_reader\.worktrees\pdf-export-notification\src-tauri\target\release\only-md-reader.exe`，大小 `45,326,848` bytes，SHA-256 为 `2AAC808B742F10BB96C94ADCC496F9E0FD76CD59E39EE3B790F0C20115F72F91`。
 
 - [x] 16.13 Windows 实机无界面导出与 release 构建。完成时间：2026-07-16
   - 使用 `pnpm tauri build --no-bundle --ci` 构建新的 release exe；打开包含中文、长文、表格、长代码、公式和本地图片的 fixture，点击导出按钮。
