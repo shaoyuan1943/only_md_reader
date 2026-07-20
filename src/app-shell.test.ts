@@ -1537,7 +1537,7 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
 });
 
 void test("settings window displays the package version", () => {
-  assert.equal(packageJson.version, "0.1.6");
+  assert.equal(packageJson.version, "0.1.7");
   assert.equal(tauriConfig.version, packageJson.version);
   assert.match(
     settingsWindowTsx,
