@@ -267,6 +267,7 @@ body,
 }
 
 .reader-preview-shell {
+  --reader-notification-card-inset: 6px;
   --reader-outline-inline-padding: 17px;
   --reader-outline-width: 336px;
   --reader-outline-card-shadow:
@@ -1114,16 +1115,16 @@ body,
 .reader-preview-notifications {
   position: fixed;
   z-index: 30;
-  left: calc(var(--window-card-inset) + var(--reader-outline-inline-padding));
-  bottom: 24px;
+  left: calc(var(--window-card-inset) + var(--reader-notification-card-inset));
+  bottom: calc(var(--window-card-inset) + var(--reader-notification-card-inset));
   display: flex;
   width: calc(
-    var(--reader-outline-width) - var(--reader-outline-inline-padding) -
-      var(--reader-outline-inline-padding)
+    var(--reader-outline-width) - var(--reader-notification-card-inset) -
+      var(--reader-notification-card-inset)
   );
   max-width: calc(
     100vw - var(--window-card-inset) - var(--window-card-inset) -
-      var(--reader-outline-inline-padding) - var(--reader-outline-inline-padding)
+      var(--reader-notification-card-inset) - var(--reader-notification-card-inset)
   );
   flex-direction: column;
   align-items: stretch;

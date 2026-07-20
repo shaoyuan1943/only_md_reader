@@ -142,10 +142,10 @@ async function main() {
     assert.equal(notification.result.value.printCalls, 0);
     assert.equal(notification.result.value.title, "PDF导出失败！");
     assert.equal(notification.result.value.detail, "PDF 导出只能在桌面应用中使用。");
-    assert.equal(notification.result.value.stackLeft, "35px");
+    assert.equal(notification.result.value.stackLeft, "24px");
     assert.equal(notification.result.value.stackBottom, "24px");
-    assert.equal(notification.result.value.stackWidth, 302);
-    assert.equal(notification.result.value.notificationWidth, 302);
+    assert.equal(notification.result.value.stackWidth, 324);
+    assert.equal(notification.result.value.notificationWidth, 324);
     assert.equal(notification.result.value.borderRadius, "14px");
     assert.equal(
       notification.result.value.background,

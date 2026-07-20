@@ -169,9 +169,9 @@ return {
 ```js
 assert.equal(notification.result.value.title, "PDF导出失败！");
 assert.equal(notification.result.value.detail, "PDF 导出只能在桌面应用中使用。");
-assert.equal(notification.result.value.stackLeft, "35px");
-assert.equal(notification.result.value.stackWidth, 302);
-assert.equal(notification.result.value.notificationWidth, 302);
+assert.equal(notification.result.value.stackLeft, "24px");
+assert.equal(notification.result.value.stackWidth, 324);
+assert.equal(notification.result.value.notificationWidth, 324);
 ```
 
 - [ ] **Step 3: 扩展 PDF QA 的成功通知交互**
@@ -337,6 +337,7 @@ showReaderNotification(
 ```css
 --reader-outline-width: 336px;
 --reader-outline-inline-padding: 17px;
+--reader-notification-card-inset: 6px;
 ```
 
 从 `.reader-preview-layout` 删除重复的 `--reader-outline-width`，把大纲 padding 改为：
@@ -348,13 +349,14 @@ padding: 24px var(--reader-outline-inline-padding) 20px;
 通知栈改为：
 
 ```css
-left: calc(var(--window-card-inset) + var(--reader-outline-inline-padding));
+left: calc(var(--window-card-inset) + var(--reader-notification-card-inset));
+bottom: calc(var(--window-card-inset) + var(--reader-notification-card-inset));
 width: calc(
-  var(--reader-outline-width) - var(--reader-outline-inline-padding) -
-    var(--reader-outline-inline-padding)
+  var(--reader-outline-width) - var(--reader-notification-card-inset) -
+    var(--reader-notification-card-inset)
 );
 max-width: calc(
-  100vw - 2 * var(--window-card-inset) - 2 * var(--reader-outline-inline-padding)
+  100vw - 2 * var(--window-card-inset) - 2 * var(--reader-notification-card-inset)
 );
 align-items: stretch;
 ```
@@ -381,7 +383,7 @@ node --test --experimental-strip-types src/features/export-pdf/export-pdf.test.t
 pnpm qa:pdf-export
 ```
 
-Expected: 所有定向单测 PASS；PDF QA 同时确认失败通知与成功通知，宽度 `302px`、左偏移 `35px`，打印态通知仍隐藏。
+Expected: 所有定向单测 PASS；PDF QA 同时确认失败通知与成功通知，宽度 `324px`、左偏移和底偏移均为 `24px`，打印态通知仍隐藏。
 
 - [ ] **Step 7: 提交实现与回归测试**
 
@@ -424,7 +426,7 @@ E:\only_md_reader\output\playwright\pdf-export-notification.png
 
 - [ ] **Step 3: 在工作列表 16.12 追加验证记录**
 
-追加一条 `2026-07-20` 修正记录，准确写入：成功/失败两行文案、动态文件名、真实错误原因、`302px` 宽度与 `35px` 左偏移、实际通过的测试数量、QA 命令、测试 EXE 路径及 SHA-256。不得在命令实际完成前填写通过状态或哈希。
+追加一条 `2026-07-20` 修正记录，准确写入：成功/失败两行文案、动态文件名、真实错误原因、`324px` 宽度与 `24px` 左/底偏移、实际通过的测试数量、QA 命令、测试 EXE 路径及 SHA-256。不得在命令实际完成前填写通过状态或哈希。
 
 - [ ] **Step 4: 验证文档并提交**
 
