@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -44,11 +51,22 @@ const profileDir = resolve(
 );
 
 async function main() {
+  rmSync(outputNotification, { force: true });
+  rmSync(outputDarkNotification, { force: true });
   let chromeProcess;
   let viteProcess;
 
   try {
     assert.ok(existsSync(chromePath), `Missing local Chromium at ${chromePath}`);
+    const appCss = readFileSync(resolve(root, "src/App.css"), "utf8");
+    assert.match(
+      appCss,
+      /\.reader-preview-notification\[data-kind="error"\]\s*{[^}]*color:\s*var\(--button-danger-bg\);/s,
+    );
+    assert.match(
+      appCss,
+      /\.reader-preview-notification-close-button svg\s*{[^}]*fill:\s*currentColor;/s,
+    );
     viteProcess = await ensureViteServer();
     const debuggingPort = await findAvailablePort(9543);
     chromeProcess = spawn(
@@ -401,8 +419,28 @@ async function main() {
     await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error&theme=dark` });
     await waitForExpression(
       cdp,
-      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+      "document.documentElement.dataset.themeEffectiveMode === 'dark' && document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
     );
+    await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const originalSetTimeout = window.setTimeout;
+        const originalClearTimeout = window.clearTimeout;
+        const scheduledTimerIds = [];
+        window.__qaDarkErrorTimerRecorder = {
+          originalClearTimeout,
+          originalSetTimeout,
+          scheduledTimerIds,
+        };
+        window.setTimeout = function (handler, delay, ...args) {
+          const timerId = Reflect.apply(originalSetTimeout, window, [handler, delay, ...args]);
+          if (delay === 3000) scheduledTimerIds.push(timerId);
+          return timerId;
+        };
+        window.clearTimeout = function (timerId) {
+          return Reflect.apply(originalClearTimeout, window, [timerId]);
+        };
+      })()`,
+    });
     await cdp.send("Runtime.evaluate", {
       expression:
         "document.querySelector('.reader-preview-pdf-export-button')?.click()",
@@ -411,6 +449,26 @@ async function main() {
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfError)}`,
     );
+    const darkErrorTimerRecorder = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const recorder = window.__qaDarkErrorTimerRecorder;
+        const scheduledTimerIds = [...recorder.scheduledTimerIds];
+        window.setTimeout = recorder.originalSetTimeout;
+        window.clearTimeout = recorder.originalClearTimeout;
+        delete window.__qaDarkErrorTimerRecorder;
+        return { scheduledTimerIds };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(darkErrorTimerRecorder.result.value.scheduledTimerIds.length, 0);
+    await cdp.send("Runtime.evaluate", {
+      expression: `Promise.all(
+        [...(document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAnimations() ?? [])]
+          .map((animation) => animation.finished)
+      ).then(() => true)`,
+      awaitPromise: true,
+      returnByValue: true,
+    });
     const darkNotification = await cdp.send("Runtime.evaluate", {
       expression: `(() => {
         const rootStyle = getComputedStyle(document.documentElement);
@@ -430,9 +488,14 @@ async function main() {
         const titleStyle = title ? getComputedStyle(title) : null;
         const detailStyle = detail ? getComputedStyle(detail) : null;
         const colorProbe = document.createElement('span');
-        colorProbe.style.backgroundColor = rootStyle.getPropertyValue('--app-bg');
+        colorProbe.style.position = 'fixed';
+        colorProbe.style.visibility = 'hidden';
+        colorProbe.style.color = 'var(--button-danger-bg)';
+        colorProbe.style.backgroundColor = 'var(--app-bg)';
         document.body.append(colorProbe);
-        const appBackground = getComputedStyle(colorProbe).backgroundColor;
+        const colorProbeStyle = getComputedStyle(colorProbe);
+        const appBackground = colorProbeStyle.backgroundColor;
+        const dangerColor = colorProbeStyle.color;
         colorProbe.remove();
         const titleContentRight = (titleRect?.left ?? 0) + (title?.clientWidth ?? 0) - parseFloat(titleStyle?.paddingRight ?? '0');
         const detailContentRight = (detailRect?.left ?? 0) + (detail?.clientWidth ?? 0) - parseFloat(detailStyle?.paddingRight ?? '0');
@@ -440,16 +503,21 @@ async function main() {
           appBackground,
           background: notificationStyle?.backgroundColor,
           borderColor: notificationStyle?.borderColor,
+          borderRightStyle: notificationStyle?.borderRightStyle,
+          borderRightWidth: notificationStyle?.borderRightWidth,
+          borderTopStyle: notificationStyle?.borderTopStyle,
+          borderTopWidth: notificationStyle?.borderTopWidth,
           buttonColor: closeButtonStyle?.color,
           closeButtonHeight: Math.round(closeButtonRect?.height ?? 0),
           closeButtonTop: closeButtonStyle?.top,
-          closeButtonTopInset: Math.round((closeButtonRect?.top ?? 0) - (notificationRect?.top ?? 0)),
+          closeButtonTopInset: (closeButtonRect?.top ?? 0) - (notificationRect?.top ?? 0),
           closeButtonRight: closeButtonStyle?.right,
-          closeButtonRightInset: Math.round((notificationRect?.right ?? 0) - (closeButtonRect?.right ?? 0)),
+          closeButtonRightInset: (notificationRect?.right ?? 0) - (closeButtonRect?.right ?? 0),
           closeButtonWidth: Math.round(closeButtonRect?.width ?? 0),
           closeIconFill: closeIconStyle?.fill,
           closeIconHeight: Math.round(closeIconRect?.height ?? 0),
           closeIconWidth: Math.round(closeIconRect?.width ?? 0),
+          dangerColor,
           detailClientWidth: detail?.clientWidth ?? 0,
           detailColor: detailStyle?.color,
           detailContentRight,
@@ -474,21 +542,29 @@ async function main() {
       darkNotification.result.value.appBackground,
     );
     assert.notEqual(darkNotification.result.value.borderColor, "rgba(0, 0, 0, 0)");
+    assert.equal(darkNotification.result.value.borderTopWidth, "1px");
+    assert.equal(darkNotification.result.value.borderRightWidth, "1px");
+    assert.equal(darkNotification.result.value.borderTopStyle, "solid");
+    assert.equal(darkNotification.result.value.borderRightStyle, "solid");
+    assert.equal(
+      darkNotification.result.value.notificationColor,
+      darkNotification.result.value.dangerColor,
+    );
     assert.equal(
       darkNotification.result.value.buttonColor,
-      darkNotification.result.value.notificationColor,
+      darkNotification.result.value.dangerColor,
     );
     assert.equal(
       darkNotification.result.value.closeIconFill,
-      darkNotification.result.value.notificationColor,
+      darkNotification.result.value.dangerColor,
     );
     assert.equal(
       darkNotification.result.value.titleColor,
-      darkNotification.result.value.notificationColor,
+      darkNotification.result.value.dangerColor,
     );
     assert.equal(
       darkNotification.result.value.detailColor,
-      darkNotification.result.value.notificationColor,
+      darkNotification.result.value.dangerColor,
     );
     assert.equal(darkNotification.result.value.closeButtonWidth, 24);
     assert.equal(darkNotification.result.value.closeButtonHeight, 24);
@@ -496,8 +572,16 @@ async function main() {
     assert.equal(darkNotification.result.value.closeIconHeight, 16);
     assert.equal(darkNotification.result.value.closeButtonTop, "8px");
     assert.equal(darkNotification.result.value.closeButtonRight, "8px");
-    assert.ok([8, 9].includes(darkNotification.result.value.closeButtonTopInset));
-    assert.ok([8, 9].includes(darkNotification.result.value.closeButtonRightInset));
+    assert.equal(
+      darkNotification.result.value.closeButtonTopInset,
+      parseFloat(darkNotification.result.value.closeButtonTop) +
+        parseFloat(darkNotification.result.value.borderTopWidth),
+    );
+    assert.equal(
+      darkNotification.result.value.closeButtonRightInset,
+      parseFloat(darkNotification.result.value.closeButtonRight) +
+        parseFloat(darkNotification.result.value.borderRightWidth),
+    );
     assert.ok(
       darkNotification.result.value.titleContentRight <=
         darkNotification.result.value.closeButtonLeft,
@@ -522,6 +606,7 @@ async function main() {
       outputDarkNotification,
       Buffer.from(darkNotificationScreenshot.data, "base64"),
     );
+    const darkCloseStartedAt = Date.now();
     const darkCloseButtonClick = await dispatchMouseClick(
       cdp,
       '.reader-preview-notification[data-kind="error"] .reader-preview-notification-close-button',
@@ -531,11 +616,17 @@ async function main() {
     await waitForExpression(
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAttribute('data-closing') === 'true'`,
+      500,
     );
+    const darkClosingStartedInMs = Date.now() - darkCloseStartedAt;
+    assert.ok(darkClosingStartedInMs <= 500);
     await waitForExpression(
       cdp,
       `document.querySelector('.reader-preview-notification[data-kind="error"]') === null`,
+      Math.max(1, 1_000 - (Date.now() - darkCloseStartedAt)),
     );
+    const darkRemovedInMs = Date.now() - darkCloseStartedAt;
+    assert.ok(darkRemovedInMs <= 1_000);
 
     await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error` });
     await waitForExpression(
@@ -792,6 +883,14 @@ async function main() {
           outputGlobalScalingPdf,
           outputHighDpiPdf,
           outputDarkNotification,
+          darkNotification: {
+            actualRightInset: darkNotification.result.value.closeButtonRightInset,
+            actualTopInset: darkNotification.result.value.closeButtonTopInset,
+            dangerColor: darkNotification.result.value.dangerColor,
+            darkClosingStartedInMs,
+            darkErrorTimerIds: darkErrorTimerRecorder.result.value.scheduledTimerIds,
+            darkRemovedInMs,
+          },
           pageCount,
           bytes: statSync(outputPdf).size,
           globalScalingBytes: statSync(outputGlobalScalingPdf).size,
@@ -882,8 +981,8 @@ async function connectToPage(port) {
   throw new Error("Could not connect to Chromium CDP page");
 }
 
-async function waitForExpression(cdp, expression) {
-  const deadline = Date.now() + 30_000;
+async function waitForExpression(cdp, expression, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const result = await cdp.send("Runtime.evaluate", {
       expression,
