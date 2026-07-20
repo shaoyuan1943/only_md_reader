@@ -78,6 +78,77 @@ void test("PDF export snapshots the persisted scaling mode for each export", () 
   assert.match(readerWindowTsx, /pdfAllowGlobalScaling/);
   assert.match(readerWindowTsx, /preparePdfPrintLayout/);
 });
+
+void test("PDF export notifications expose a compact close control", () => {
+  assert.match(readerWindowTsx, /aria-label="关闭通知"/);
+  assert.match(readerWindowTsx, /title="关闭通知"/);
+  assert.match(readerWindowTsx, /onClose\(notification\.id\)/);
+  assert.match(
+    readerWindowTsx,
+    /M859\.00288 178\.741248c-188\.43648-188\.471296-495\.06304/,
+  );
+  assert.match(readerWindowTsx, /M571\.764736 518\.862848l154\.630144-154\.871808/);
+
+  const notificationRule = getCssRuleBody(".reader-preview-notification");
+  const closeButtonRule = getCssRuleBody(".reader-preview-notification-close-button");
+  const closeIconRule = getCssRuleBody(".reader-preview-notification-close-button svg");
+  const errorNotificationRule = getCssRuleBody(
+    '.reader-preview-notification[data-kind="error"]',
+  );
+  const titleRule = getCssRuleBodyContainingSelector(
+    ".reader-preview-notification-title",
+    "padding-right",
+  );
+  const detailRule = getCssRuleBodyContainingSelector(
+    ".reader-preview-notification-detail",
+    "padding-right",
+  );
+
+  assert.match(notificationRule, /\bposition:\s*relative;/);
+  assert.match(notificationRule, /\bborder:\s*0;/);
+  assert.match(notificationRule, /\bpadding:\s*12px 15px;/);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "top"), 9);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "right"), 9);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "width"), 24);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "height"), 24);
+  assert.equal(getCssPxDeclaration(closeIconRule, "width"), 16);
+  assert.equal(getCssPxDeclaration(closeIconRule, "height"), 16);
+  assert.equal(getCssPxDeclaration(titleRule, "padding-right"), 28);
+  assert.equal(getCssPxDeclaration(detailRule, "padding-right"), 28);
+  assert.match(errorNotificationRule, /\bcolor:\s*var\(--button-danger-bg\);/);
+  assert.doesNotMatch(errorNotificationRule, /\bborder(?:-[a-z]+)?:/);
+
+  const closeHandler = readerWindowTsx.match(
+    /const closeReaderNotification = useCallback\(\(id: string\) => \{(?<body>[\s\S]*?)\n {2}\}, \[\]\);/,
+  );
+  assert.ok(
+    closeHandler?.groups?.body,
+    "Missing closeReaderNotification callback body",
+  );
+
+  const closeHandlerBody = closeHandler.groups.body;
+  const clearTimerIndex = closeHandlerBody.indexOf("window.clearTimeout(successTimer)");
+  const deleteTimerIndex = closeHandlerBody.indexOf(
+    "readerNotificationSuccessTimersRef.current.delete(id)",
+  );
+  const closeStateIndex = closeHandlerBody.indexOf(
+    "closeReaderNotificationState(current, id)",
+  );
+
+  assert.match(
+    closeHandlerBody,
+    /readerNotificationSuccessTimersRef\.current\.get\(id\)/,
+  );
+  assert.ok(clearTimerIndex >= 0, "Success timer must be cleared when closed manually");
+  assert.ok(
+    deleteTimerIndex > clearTimerIndex,
+    "Success timer must be deleted after clear",
+  );
+  assert.ok(
+    closeStateIndex > deleteTimerIndex,
+    "Success timer cleanup must happen before closing notification state",
+  );
+});
 const readBootWindowEntry = () => {
   const bootWindowEntryUrl = new URL("./boot-window.ts", import.meta.url);
 
@@ -717,7 +788,11 @@ void test("reader window uses floating outline and reading cards without hard di
   );
   assert.match(
     appCss,
-    /\.reader-preview-layout\s*{[^}]*--reader-outline-width:\s*336px;[^}]*--reader-card-gap:\s*30px;[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);[^}]*\bgap:\s*var\(--reader-card-gap\);/s,
+    /\.reader-preview-shell\s*{[^}]*--reader-outline-inline-padding:\s*17px;[^}]*--reader-outline-width:\s*336px;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-layout\s*{[^}]*--reader-card-gap:\s*30px;[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);[^}]*\bgap:\s*var\(--reader-card-gap\);/s,
   );
   assert.match(
     appCss,
@@ -1001,7 +1076,7 @@ void test("reader window implements formal scroll chrome and layered card shadow
 void test("reader outline follows reader html density without top fade covering the first item", () => {
   assert.match(
     appCss,
-    /\.reader-preview-outline-card\s*{[^}]*\bpadding:\s*24px\s+17px\s+20px;/s,
+    /\.reader-preview-outline-card\s*{[^}]*\bpadding:\s*24px\s+var\(--reader-outline-inline-padding\)\s+20px;/s,
   );
   assert.doesNotMatch(appCss, /\.reader-preview-outline-card\s*{[^}]*\bgap:\s*14px;/s);
   assert.match(
@@ -1033,7 +1108,11 @@ void test("reader outline keeps long headings inside a wider fixed visual lane",
   assert.match(readerWindowTsx, /className="reader-preview-outline-item-text"/);
   assert.match(
     appCss,
-    /\.reader-preview-layout\s*{[^}]*--reader-outline-width:\s*336px;[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);/s,
+    /\.reader-preview-shell\s*{[^}]*--reader-outline-inline-padding:\s*17px;[^}]*--reader-outline-width:\s*336px;/s,
+  );
+  assert.match(
+    appCss,
+    /\.reader-preview-layout\s*{[^}]*\bgrid-template-columns:\s*minmax\(300px,\s*var\(--reader-outline-width\)\)\s+minmax\(0,\s*1fr\);/s,
   );
   assert.match(
     appCss,

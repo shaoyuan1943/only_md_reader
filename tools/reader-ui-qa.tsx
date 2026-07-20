@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "../src/App.css";
 import "katex/dist/katex.css";
 import { ReaderPreviewWindow } from "../src/features/reader/ReaderPreviewWindow.tsx";
+import type { PdfExportApi } from "../src/features/export-pdf/pdf-export-api.ts";
 import type {
   SaveWindowStateRequest,
   WindowStateApi,
@@ -18,11 +19,13 @@ import { validateThemeTokenBundle } from "../src/shared/theme/theme-schema.ts";
 import warmPaper from "../src/shared/theme/themes/warm-paper.json";
 
 const theme = validateThemeTokenBundle(warmPaper);
+const qaSearchParams = new URLSearchParams(window.location.search);
+const qaThemeMode = qaSearchParams.get("theme") === "dark" ? "dark" : "light";
 let currentSettings: ReaderSettings = {
   ...defaultReaderSettings,
   bodyFontFamily: "Georgia",
   codeFontFamily: "Consolas",
-  themeMode: "light",
+  themeMode: qaThemeMode,
 };
 
 declare global {
@@ -190,6 +193,25 @@ const content = [
   "[^reader-note]: Reader footnote target used to verify in-document anchor navigation and backlink behavior.",
 ].join("\n");
 
+const qaLongPdfFileName =
+  "reader-ui-qa-document-with-an-intentionally-long-export-file-name (2).pdf";
+const qaLongPdfError =
+  "无法写入目标 PDF 文件，请确认目标目录存在、文件未被其他程序占用且当前账户具有写入权限。";
+const qaPdfExportMode = qaSearchParams.get("pdfExport");
+const qaPdfExportApi: PdfExportApi | undefined =
+  qaPdfExportMode === "success"
+    ? {
+        exportPdf: () =>
+          Promise.resolve({
+            outputPath: `E:\\notes\\${qaLongPdfFileName}`,
+          }),
+      }
+    : qaPdfExportMode === "error"
+      ? {
+          exportPdf: () => Promise.reject(new Error(qaLongPdfError)),
+        }
+      : undefined;
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ReaderPreviewWindow
@@ -201,6 +223,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         fileSize: content.length,
         modifiedAt: "2026-07-02T00:00:00.000Z",
       }}
+      pdfExportApi={qaPdfExportApi}
       settingsApi={qaSettingsApi}
       windowStateApi={qaWindowStateApi}
     />

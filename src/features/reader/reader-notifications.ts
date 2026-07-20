@@ -1,10 +1,11 @@
 export const MAX_VISIBLE_ERROR_NOTIFICATIONS = 3;
 
 export type ReaderNotification = {
+  detail: string;
   id: string;
   isClosing: boolean;
   kind: "error" | "success";
-  message: string;
+  title: string;
 };
 
 export function addReaderNotification(

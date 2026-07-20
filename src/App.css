@@ -267,6 +267,9 @@ body,
 }
 
 .reader-preview-shell {
+  --reader-notification-card-inset: 6px;
+  --reader-outline-inline-padding: 17px;
+  --reader-outline-width: 336px;
   --reader-outline-card-shadow:
     0 20px 42px color-mix(in srgb, var(--accent) 14%, transparent),
     0 7px 18px color-mix(in srgb, var(--accent) 10%, transparent),
@@ -287,7 +290,6 @@ body,
 }
 
 .reader-preview-layout {
-  --reader-outline-width: 336px;
   --reader-card-gap: 30px;
 
   position: relative;
@@ -319,7 +321,7 @@ body,
 }
 
 .reader-preview-outline-card {
-  padding: 24px 17px 20px;
+  padding: 24px var(--reader-outline-inline-padding) 20px;
   box-shadow: var(--reader-outline-card-shadow);
   font-family: var(
     --reader-body-font-family,
@@ -1113,26 +1115,34 @@ body,
 .reader-preview-notifications {
   position: fixed;
   z-index: 30;
-  left: 24px;
-  bottom: 24px;
+  left: calc(var(--window-card-inset) + var(--reader-notification-card-inset));
+  bottom: calc(var(--window-card-inset) + var(--reader-notification-card-inset));
   display: flex;
-  max-width: min(360px, calc(100vw - 48px));
+  width: calc(
+    var(--reader-outline-width) - var(--reader-notification-card-inset) -
+      var(--reader-notification-card-inset)
+  );
+  max-width: calc(
+    100vw - var(--window-card-inset) - var(--window-card-inset) -
+      var(--reader-notification-card-inset) - var(--reader-notification-card-inset)
+  );
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 10px;
   pointer-events: none;
 }
 
 .reader-preview-notification {
+  position: relative;
   box-sizing: border-box;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  border: 0;
   border-radius: 14px;
   background: var(--app-bg);
   color: var(--text-primary);
-  padding: 11px 14px;
+  padding: 12px 15px;
   box-shadow:
     0 22px 46px color-mix(in srgb, #000 34%, transparent),
     0 8px 20px color-mix(in srgb, var(--accent) 22%, transparent),
@@ -1147,13 +1157,56 @@ body,
   );
   font-size: 13px;
   line-height: 1.55;
-  overflow-wrap: anywhere;
   pointer-events: auto;
   animation: reader-notification-enter 0.24s ease-out both;
 }
 
+.reader-preview-notification-title,
+.reader-preview-notification-detail {
+  display: block;
+  padding-right: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-preview-notification-title {
+  font-weight: 700;
+}
+
+.reader-preview-notification-close-button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 50%;
+  padding: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.reader-preview-notification-close-button:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.reader-preview-notification-close-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 72%, transparent);
+  outline-offset: 1px;
+}
+
+.reader-preview-notification-close-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 .reader-preview-notification[data-kind="error"] {
-  border-color: color-mix(in srgb, var(--button-danger-bg) 60%, var(--border-soft));
   color: var(--button-danger-bg);
 }
 

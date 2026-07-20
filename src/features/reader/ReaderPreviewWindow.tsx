@@ -46,9 +46,9 @@ import { getRestoreTarget } from "./window-state.ts";
 import type { WindowStateApi } from "./window-state-api.ts";
 import { createWindowStateApi } from "./window-state-api.ts";
 import { READER_READY_TO_REVEAL_EVENT } from "../../shared/window-reveal.ts";
-import { startPdfExport } from "../export-pdf/export-pdf.ts";
+import { getPdfExportFileName, startPdfExport } from "../export-pdf/export-pdf.ts";
 import { waitForPdfExportReadiness } from "../export-pdf/export-readiness.ts";
-import { createPdfExportApi } from "../export-pdf/pdf-export-api.ts";
+import { createPdfExportApi, type PdfExportApi } from "../export-pdf/pdf-export-api.ts";
 import { preparePdfPrintLayout } from "../export-pdf/pdf-local-fit.ts";
 import {
   addReaderNotification,
@@ -66,12 +66,13 @@ const SELECTION_COPY_BUTTON_SIZE_PX = 32;
 const TEXT_SELECTION_DRAG_THRESHOLD_PX = 10;
 const PDF_EXPORT_SUCCESS_NOTIFICATION_DURATION_MS = 3_000;
 const READER_NOTIFICATION_EXIT_DURATION_MS = 220;
-const pdfExportApi = createPdfExportApi();
+const defaultPdfExportApi = createPdfExportApi();
 
 type ReaderPreviewWindowProps = {
   file: OpenedMarkdownFile;
   initialWindowState?: WindowState | null;
   onBackToOpenFile?(this: void): void;
+  pdfExportApi?: PdfExportApi;
   windowStateApi?: WindowStateApi;
   settingsApi?: ReturnType<typeof createSettingsApi>;
 };
@@ -131,6 +132,7 @@ export function ReaderPreviewWindow({
   file,
   initialWindowState = null,
   onBackToOpenFile: handleBackToOpenFile,
+  pdfExportApi = defaultPdfExportApi,
   settingsApi = createSettingsApi(),
   windowStateApi = createWindowStateApi(),
 }: ReaderPreviewWindowProps) {
@@ -864,18 +866,26 @@ export function ReaderPreviewWindow({
   };
 
   const closeReaderNotification = useCallback((id: string) => {
+    const successTimer = readerNotificationSuccessTimersRef.current.get(id);
+
+    if (successTimer !== undefined) {
+      window.clearTimeout(successTimer);
+      readerNotificationSuccessTimersRef.current.delete(id);
+    }
+
     setReaderNotifications((current) => closeReaderNotificationState(current, id));
   }, []);
 
   const showReaderNotification = useCallback(
-    (kind: ReaderNotification["kind"], message: string) => {
+    (kind: ReaderNotification["kind"], title: string, detail: string) => {
       const id = `reader-notification-${Date.now()}-${readerNotificationIdRef.current}`;
       readerNotificationIdRef.current += 1;
       const notification: ReaderNotification = {
+        detail,
         id,
         kind,
-        message,
         isClosing: false,
+        title,
       };
 
       setReaderNotifications((current) => addReaderNotification(current, notification));
@@ -952,15 +962,24 @@ export function ReaderPreviewWindow({
       if (result.kind === "resource-timeout") {
         showReaderNotification(
           "error",
+          "PDF导出失败！",
           "图片尚未加载完成，暂未导出。请检查图片路径或网络后重试。",
         );
       } else if (result.kind === "export-failed") {
-        showReaderNotification("error", result.message);
+        showReaderNotification("error", "PDF导出失败！", result.message);
       } else {
-        showReaderNotification("success", "PDF 已导出。");
+        showReaderNotification(
+          "success",
+          "PDF文件已导出！",
+          getPdfExportFileName(result.outputPath),
+        );
       }
     } catch (error) {
-      showReaderNotification("error", `无法准备 PDF 导出：${getErrorMessage(error)}`);
+      showReaderNotification(
+        "error",
+        "PDF导出失败！",
+        `无法准备 PDF 导出：${getErrorMessage(error)}`,
+      );
     } finally {
       setIsPdfExportPreparing(false);
     }
@@ -1163,7 +1182,10 @@ export function ReaderPreviewWindow({
           {isOutlineHidden ? <RightArrowIcon /> : <LeftArrowIcon />}
         </button>
       </div>
-      <ReaderNotificationStack notifications={readerNotifications} />
+      <ReaderNotificationStack
+        notifications={readerNotifications}
+        onClose={closeReaderNotification}
+      />
       {selectionCopyBubble ? (
         <button
           className="reader-preview-selection-copy-button"
@@ -1190,8 +1212,10 @@ export function ReaderPreviewWindow({
 
 function ReaderNotificationStack({
   notifications,
+  onClose,
 }: {
   notifications: ReaderNotification[];
+  onClose(this: void, id: string): void;
 }) {
   if (notifications.length === 0) {
     return null;
@@ -1207,7 +1231,24 @@ function ReaderNotificationStack({
           key={notification.id}
           role={notification.kind === "error" ? "alert" : "status"}
         >
-          {notification.message}
+          <span className="reader-preview-notification-title">
+            {notification.title}
+          </span>
+          <span className="reader-preview-notification-detail">
+            {notification.detail}
+          </span>
+          <button
+            className="reader-preview-notification-close-button"
+            type="button"
+            aria-label="关闭通知"
+            title="关闭通知"
+            onClick={() => onClose(notification.id)}
+          >
+            <svg viewBox="0 0 1024 1024" aria-hidden="true">
+              <path d="M859.00288 178.741248c-188.43648-188.471296-495.06304-188.471296-683.49952 0-188.469248 188.432384-188.469248 495.060992 0 683.493376 188.43648 188.473344 495.06304 188.473344 683.49952 0C1047.472128 673.80224 1047.472128 367.173632 859.00288 178.741248zM809.965568 813.19936c-161.41312 161.409024-424.04864 161.376256-585.424896 0-161.409024-161.41312-161.409024-424.011776 0-585.424896 161.376256-161.376256 424.011776-161.409024 585.424896 0C971.341824 389.15072 971.341824 651.8272 809.965568 813.19936z" />
+              <path d="M571.764736 518.862848l154.630144-154.871808c13.508608-13.529088 13.508608-35.463168 0-48.992256-13.508608-13.529088-35.407872-13.529088-48.91648 0l-154.628096 154.86976L362.14784 308.92032c-13.45536-13.473792-35.270656-13.473792-48.726016 0-13.453312 13.477888-13.453312 35.325952 0 48.80384l160.698368 160.950272-168.409088 168.67328c-13.510656 13.529088-13.510656 35.465216 0 48.994304 13.508608 13.529088 35.407872 13.529088 48.914432 0l168.411136-168.675328 160.700416 160.950272c13.45536 13.473792 35.270656 13.473792 48.726016 0 13.45536-13.477888 13.45536-35.325952 0-48.801792L571.764736 518.862848z" />
+            </svg>
+          </button>
         </p>
       ))}
     </aside>

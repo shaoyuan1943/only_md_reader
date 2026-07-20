@@ -9,10 +9,18 @@ function error(id: string): ReaderNotification {
   return {
     id,
     kind: "error",
-    message: id,
+    title: "PDF导出失败！",
+    detail: id,
     isClosing: false,
   };
 }
+
+void test("preserves notification title and detail", () => {
+  const notification = error("无法保存 PDF 文件：Access denied");
+  const notifications = addReaderNotification([], notification);
+
+  assert.deepEqual(notifications[0], notification);
+});
 
 void test("appends a new notification so the latest item is rendered at the bottom", () => {
   const notifications = addReaderNotification([error("first")], error("latest"));
@@ -52,7 +60,8 @@ void test("does not evict errors for a success notification", () => {
     {
       id: "success",
       kind: "success",
-      message: "PDF 已导出。",
+      title: "PDF文件已导出！",
+      detail: "readme.pdf",
       isClosing: false,
     },
   );

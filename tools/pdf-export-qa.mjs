@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -18,7 +25,19 @@ const outputPreview = resolve(
   root,
   "output/playwright/pdf-export-qa-print-preview.png",
 );
+const outputNotification = resolve(
+  root,
+  "output/playwright/pdf-export-notification.png",
+);
+const outputDarkNotification = resolve(
+  root,
+  "output/playwright/pdf-export-notification-dark.png",
+);
 const qaUrl = "http://127.0.0.1:1420/tools/reader-ui-qa.html";
+const qaLongPdfFileName =
+  "reader-ui-qa-document-with-an-intentionally-long-export-file-name (2).pdf";
+const qaLongPdfError =
+  "无法写入目标 PDF 文件，请确认目标目录存在、文件未被其他程序占用且当前账户具有写入权限。";
 const chromePath = resolve(
   process.env.LOCALAPPDATA ?? "",
   "ms-playwright",
@@ -32,11 +51,26 @@ const profileDir = resolve(
 );
 
 async function main() {
+  rmSync(outputNotification, { force: true });
+  rmSync(outputDarkNotification, { force: true });
   let chromeProcess;
   let viteProcess;
 
   try {
     assert.ok(existsSync(chromePath), `Missing local Chromium at ${chromePath}`);
+    const appCss = readFileSync(resolve(root, "src/App.css"), "utf8");
+    assert.match(
+      appCss,
+      /\.reader-preview-notification\[data-kind="error"\]\s*{[^}]*color:\s*var\(--button-danger-bg\);/s,
+    );
+    assert.match(
+      appCss,
+      /\.reader-preview-notification\s*{[^}]*border:\s*0;[^}]*padding:\s*12px 15px;/s,
+    );
+    assert.match(
+      appCss,
+      /\.reader-preview-notification-close-button svg\s*{[^}]*fill:\s*currentColor;/s,
+    );
     viteProcess = await ensureViteServer();
     const debuggingPort = await findAvailablePort(9543);
     chromeProcess = spawn(
@@ -57,6 +91,12 @@ async function main() {
     const cdp = await CdpConnection.connect(page.webSocketDebuggerUrl);
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
     await cdp.send("Page.navigate", { url: qaUrl });
     await waitForExpression(
       cdp,
@@ -98,7 +138,8 @@ async function main() {
     });
     await waitForExpression(
       cdp,
-      "document.querySelector('.reader-preview-notification[data-kind=\"error\"]')?.textContent?.includes('PDF 导出只能在桌面应用中使用。') === true",
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-title')?.textContent === 'PDF导出失败！' &&
+       document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent?.includes('PDF 导出只能在桌面应用中使用。') === true`,
     );
     const notification = await cdp.send("Runtime.evaluate", {
       expression: `(() => {
@@ -108,12 +149,35 @@ async function main() {
         const shell = document.querySelector('.reader-preview-shell');
         const style = notification ? getComputedStyle(notification) : null;
         const stackStyle = notificationStack ? getComputedStyle(notificationStack) : null;
+        const notificationRect = notification?.getBoundingClientRect();
+        const stackRect = notificationStack?.getBoundingClientRect();
+        const closeButton = notification?.querySelector('.reader-preview-notification-close-button');
+        const closeIcon = closeButton?.querySelector('svg');
+        const closeButtonRect = closeButton?.getBoundingClientRect();
+        const closeIconRect = closeIcon?.getBoundingClientRect();
+        const closeButtonStyle = closeButton ? getComputedStyle(closeButton) : null;
         return {
           background: style?.backgroundColor,
           borderRadius: style?.borderRadius,
+          borderTopStyle: style?.borderTopStyle,
+          borderTopWidth: style?.borderTopWidth,
+          closeButtonHeight: Math.round(closeButtonRect?.height ?? 0),
+          closeButtonLabel: closeButton?.getAttribute('aria-label'),
+          closeButtonRight: closeButtonStyle?.right,
+          closeButtonRightInset: Math.round((notificationRect?.right ?? 0) - (closeButtonRect?.right ?? 0)),
+          closeButtonTitle: closeButton?.getAttribute('title'),
+          closeButtonTop: closeButtonStyle?.top,
+          closeButtonTopInset: Math.round((closeButtonRect?.top ?? 0) - (notificationRect?.top ?? 0)),
+          closeButtonWidth: Math.round(closeButtonRect?.width ?? 0),
+          closeIconHeight: Math.round(closeIconRect?.height ?? 0),
+          closeIconWidth: Math.round(closeIconRect?.width ?? 0),
+          detail: notification?.querySelector('.reader-preview-notification-detail')?.textContent,
           fontFamily: style?.fontFamily,
+          notificationWidth: Math.round(notificationRect?.width ?? 0),
           stackBottom: stackStyle?.bottom,
           stackLeft: stackStyle?.left,
+          stackWidth: Math.round(stackRect?.width ?? 0),
+          title: notification?.querySelector('.reader-preview-notification-title')?.textContent,
           readingFontFamily: readingDocument ? getComputedStyle(readingDocument).fontFamily : '',
           printCalls: window.__qaPdfPrintCalls,
           shellBackground: shell ? getComputedStyle(shell).backgroundColor : '',
@@ -123,9 +187,25 @@ async function main() {
     });
     assert.equal(interaction.result.value.shortcutPrevented, true);
     assert.equal(notification.result.value.printCalls, 0);
+    assert.equal(notification.result.value.title, "PDF导出失败！");
+    assert.equal(notification.result.value.detail, "PDF 导出只能在桌面应用中使用。");
     assert.equal(notification.result.value.stackLeft, "24px");
     assert.equal(notification.result.value.stackBottom, "24px");
+    assert.equal(notification.result.value.stackWidth, 324);
+    assert.equal(notification.result.value.notificationWidth, 324);
     assert.equal(notification.result.value.borderRadius, "14px");
+    assert.equal(notification.result.value.borderTopWidth, "0px");
+    assert.equal(notification.result.value.borderTopStyle, "none");
+    assert.equal(notification.result.value.closeButtonLabel, "关闭通知");
+    assert.equal(notification.result.value.closeButtonTitle, "关闭通知");
+    assert.equal(notification.result.value.closeButtonTop, "9px");
+    assert.equal(notification.result.value.closeButtonRight, "9px");
+    assert.equal(notification.result.value.closeButtonTopInset, 9);
+    assert.equal(notification.result.value.closeButtonRightInset, 9);
+    assert.equal(notification.result.value.closeButtonWidth, 24);
+    assert.equal(notification.result.value.closeButtonHeight, 24);
+    assert.equal(notification.result.value.closeIconWidth, 16);
+    assert.equal(notification.result.value.closeIconHeight, 16);
     assert.equal(
       notification.result.value.background,
       notification.result.value.shellBackground,
@@ -135,6 +215,442 @@ async function main() {
       notification.result.value.readingFontFamily,
     );
 
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=success` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-title')?.textContent === 'PDF文件已导出！' &&
+       document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfFileName)}`,
+    );
+    const successNotification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const success = document.querySelector('.reader-preview-notification[data-kind="success"]');
+        const title = success?.querySelector('.reader-preview-notification-title');
+        const detail = success?.querySelector('.reader-preview-notification-detail');
+        const titleStyle = title ? getComputedStyle(title) : null;
+        const detailStyle = detail ? getComputedStyle(detail) : null;
+        const closeButton = success?.querySelector('.reader-preview-notification-close-button');
+        const closeIcon = closeButton?.querySelector('svg');
+        const closeButtonRect = closeButton?.getBoundingClientRect();
+        const closeIconRect = closeIcon?.getBoundingClientRect();
+        return {
+          closeButtonHeight: Math.round(closeButtonRect?.height ?? 0),
+          closeButtonWidth: Math.round(closeButtonRect?.width ?? 0),
+          closeIconHeight: Math.round(closeIconRect?.height ?? 0),
+          closeIconWidth: Math.round(closeIconRect?.width ?? 0),
+          title: title?.textContent,
+          detail: detail?.textContent,
+          titleOverflow: titleStyle?.overflow,
+          titleTextOverflow: titleStyle?.textOverflow,
+          titleWhiteSpace: titleStyle?.whiteSpace,
+          detailClientWidth: detail?.clientWidth ?? 0,
+          detailScrollWidth: detail?.scrollWidth ?? 0,
+          detailOverflow: detailStyle?.overflow,
+          detailTextOverflow: detailStyle?.textOverflow,
+          detailWhiteSpace: detailStyle?.whiteSpace,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(successNotification.result.value.title, "PDF文件已导出！");
+    assert.equal(successNotification.result.value.detail, qaLongPdfFileName);
+    assert.equal(successNotification.result.value.closeButtonWidth, 24);
+    assert.equal(successNotification.result.value.closeButtonHeight, 24);
+    assert.equal(successNotification.result.value.closeIconWidth, 16);
+    assert.equal(successNotification.result.value.closeIconHeight, 16);
+    assert.equal(successNotification.result.value.titleOverflow, "hidden");
+    assert.equal(successNotification.result.value.titleTextOverflow, "ellipsis");
+    assert.equal(successNotification.result.value.titleWhiteSpace, "nowrap");
+    assert.equal(successNotification.result.value.detailOverflow, "hidden");
+    assert.equal(successNotification.result.value.detailTextOverflow, "ellipsis");
+    assert.equal(successNotification.result.value.detailWhiteSpace, "nowrap");
+    assert.ok(
+      successNotification.result.value.detailScrollWidth >
+        successNotification.result.value.detailClientWidth,
+    );
+    const notificationScreenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    mkdirSync(dirname(outputNotification), { recursive: true });
+    writeFileSync(
+      outputNotification,
+      Buffer.from(notificationScreenshot.data, "base64"),
+    );
+
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"]') === null`,
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const originalSetTimeout = window.setTimeout;
+        const originalClearTimeout = window.clearTimeout;
+        const scheduledTimerIds = [];
+        const clearedTimerIds = [];
+        window.__qaNotificationTimerRecorder = {
+          clearedTimerIds,
+          originalClearTimeout,
+          originalSetTimeout,
+          scheduledTimerIds,
+        };
+        window.setTimeout = function (handler, delay, ...args) {
+          const timerId = Reflect.apply(originalSetTimeout, window, [handler, delay, ...args]);
+          if (delay === 3000) scheduledTimerIds.push(timerId);
+          return timerId;
+        };
+        window.clearTimeout = function (timerId) {
+          if (scheduledTimerIds.includes(timerId)) clearedTimerIds.push(timerId);
+          return Reflect.apply(originalClearTimeout, window, [timerId]);
+        };
+      })()`,
+    });
+
+    const exportButtonClick = await dispatchMouseClick(
+      cdp,
+      ".reader-preview-pdf-export-button",
+    );
+    assert.equal(exportButtonClick.width, 32);
+    assert.equal(exportButtonClick.height, 32);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfFileName)}`,
+    );
+    const newSuccessObservedAt = Date.now();
+    const timerAtCreation = await cdp.send("Runtime.evaluate", {
+      expression: `(() => ({
+        scheduledTimerIds: [...window.__qaNotificationTimerRecorder.scheduledTimerIds],
+      }))()`,
+      returnByValue: true,
+    });
+    assert.equal(timerAtCreation.result.value.scheduledTimerIds.length, 1);
+    const [successAutoCloseTimerId] = timerAtCreation.result.value.scheduledTimerIds;
+
+    const successCloseStartedAt = Date.now();
+    const successCloseButtonClick = await dispatchMouseClick(
+      cdp,
+      '.reader-preview-notification[data-kind="success"] .reader-preview-notification-close-button',
+    );
+    assert.equal(successCloseButtonClick.width, 24);
+    assert.equal(successCloseButtonClick.height, 24);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"]')?.getAttribute('data-closing') === 'true'`,
+    );
+    const successClosingStartedInMs = Date.now() - successCloseStartedAt;
+    assert.ok(
+      successClosingStartedInMs <= 500,
+      "coordinate click must start closing the fresh success notification within 500ms",
+    );
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="success"]') === null`,
+    );
+    const successRemovedInMs = Date.now() - newSuccessObservedAt;
+    assert.ok(
+      successRemovedInMs <= 1_000,
+      "fresh success notification must be removed well before its 3000ms auto-close",
+    );
+    const timerRecorder = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const recorder = window.__qaNotificationTimerRecorder;
+        const result = {
+          clearedTimerIds: [...recorder.clearedTimerIds],
+          scheduledTimerIds: [...recorder.scheduledTimerIds],
+        };
+        window.setTimeout = recorder.originalSetTimeout;
+        window.clearTimeout = recorder.originalClearTimeout;
+        delete window.__qaNotificationTimerRecorder;
+        return result;
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(timerRecorder.result.value.scheduledTimerIds.length, 1);
+    assert.ok(
+      timerRecorder.result.value.clearedTimerIds.includes(successAutoCloseTimerId),
+      "manual close must clear the exact 3000ms timer created for the fresh notification",
+    );
+
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfError)}`,
+    );
+    const longErrorNotification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const notification = document.querySelector('.reader-preview-notification[data-kind="error"]');
+        const detail = notification?.querySelector('.reader-preview-notification-detail');
+        const closeButton = notification?.querySelector('.reader-preview-notification-close-button');
+        const style = detail ? getComputedStyle(detail) : null;
+        return {
+          closeButtonExists: Boolean(closeButton),
+          detail: detail?.textContent,
+          clientWidth: detail?.clientWidth ?? 0,
+          scrollWidth: detail?.scrollWidth ?? 0,
+          overflow: style?.overflow,
+          textOverflow: style?.textOverflow,
+          whiteSpace: style?.whiteSpace,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(longErrorNotification.result.value.detail, qaLongPdfError);
+    assert.equal(longErrorNotification.result.value.closeButtonExists, true);
+    assert.equal(longErrorNotification.result.value.overflow, "hidden");
+    assert.equal(longErrorNotification.result.value.textOverflow, "ellipsis");
+    assert.equal(longErrorNotification.result.value.whiteSpace, "nowrap");
+    assert.ok(
+      longErrorNotification.result.value.scrollWidth >
+        longErrorNotification.result.value.clientWidth,
+    );
+    const errorCloseButtonClick = await dispatchMouseClick(
+      cdp,
+      '.reader-preview-notification[data-kind="error"] .reader-preview-notification-close-button',
+    );
+    assert.equal(errorCloseButtonClick.width, 24);
+    assert.equal(errorCloseButtonClick.height, 24);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAttribute('data-closing') === 'true'`,
+    );
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"]') === null`,
+    );
+
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error&theme=dark` });
+    await waitForExpression(
+      cdp,
+      "document.documentElement.dataset.themeEffectiveMode === 'dark' && document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const originalSetTimeout = window.setTimeout;
+        const originalClearTimeout = window.clearTimeout;
+        const scheduledTimerIds = [];
+        window.__qaDarkErrorTimerRecorder = {
+          originalClearTimeout,
+          originalSetTimeout,
+          scheduledTimerIds,
+        };
+        window.setTimeout = function (handler, delay, ...args) {
+          const timerId = Reflect.apply(originalSetTimeout, window, [handler, delay, ...args]);
+          if (delay === 3000) scheduledTimerIds.push(timerId);
+          return timerId;
+        };
+        window.clearTimeout = function (timerId) {
+          return Reflect.apply(originalClearTimeout, window, [timerId]);
+        };
+      })()`,
+    });
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfError)}`,
+    );
+    const darkErrorTimerRecorder = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const recorder = window.__qaDarkErrorTimerRecorder;
+        const scheduledTimerIds = [...recorder.scheduledTimerIds];
+        window.setTimeout = recorder.originalSetTimeout;
+        window.clearTimeout = recorder.originalClearTimeout;
+        delete window.__qaDarkErrorTimerRecorder;
+        return { scheduledTimerIds };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(darkErrorTimerRecorder.result.value.scheduledTimerIds.length, 0);
+    await cdp.send("Runtime.evaluate", {
+      expression: `Promise.all(
+        [...(document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAnimations() ?? [])]
+          .map((animation) => animation.finished)
+      ).then(() => true)`,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    const darkNotification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        const notification = document.querySelector('.reader-preview-notification[data-kind="error"]');
+        const closeButton = notification?.querySelector('.reader-preview-notification-close-button');
+        const closeIcon = closeButton?.querySelector('svg');
+        const title = notification?.querySelector('.reader-preview-notification-title');
+        const detail = notification?.querySelector('.reader-preview-notification-detail');
+        const notificationRect = notification?.getBoundingClientRect();
+        const closeButtonRect = closeButton?.getBoundingClientRect();
+        const closeIconRect = closeIcon?.getBoundingClientRect();
+        const titleRect = title?.getBoundingClientRect();
+        const detailRect = detail?.getBoundingClientRect();
+        const notificationStyle = notification ? getComputedStyle(notification) : null;
+        const closeButtonStyle = closeButton ? getComputedStyle(closeButton) : null;
+        const closeIconStyle = closeIcon ? getComputedStyle(closeIcon) : null;
+        const titleStyle = title ? getComputedStyle(title) : null;
+        const detailStyle = detail ? getComputedStyle(detail) : null;
+        const colorProbe = document.createElement('span');
+        colorProbe.style.position = 'fixed';
+        colorProbe.style.visibility = 'hidden';
+        colorProbe.style.color = 'var(--button-danger-bg)';
+        colorProbe.style.backgroundColor = 'var(--app-bg)';
+        document.body.append(colorProbe);
+        const colorProbeStyle = getComputedStyle(colorProbe);
+        const appBackground = colorProbeStyle.backgroundColor;
+        const dangerColor = colorProbeStyle.color;
+        colorProbe.remove();
+        const titleContentRight = (titleRect?.left ?? 0) + (title?.clientWidth ?? 0) - parseFloat(titleStyle?.paddingRight ?? '0');
+        const detailContentRight = (detailRect?.left ?? 0) + (detail?.clientWidth ?? 0) - parseFloat(detailStyle?.paddingRight ?? '0');
+        return {
+          appBackground,
+          background: notificationStyle?.backgroundColor,
+          borderRightStyle: notificationStyle?.borderRightStyle,
+          borderRightWidth: notificationStyle?.borderRightWidth,
+          borderTopStyle: notificationStyle?.borderTopStyle,
+          borderTopWidth: notificationStyle?.borderTopWidth,
+          buttonColor: closeButtonStyle?.color,
+          closeButtonHeight: Math.round(closeButtonRect?.height ?? 0),
+          closeButtonTop: closeButtonStyle?.top,
+          closeButtonTopInset: (closeButtonRect?.top ?? 0) - (notificationRect?.top ?? 0),
+          closeButtonRight: closeButtonStyle?.right,
+          closeButtonRightInset: (notificationRect?.right ?? 0) - (closeButtonRect?.right ?? 0),
+          closeButtonWidth: Math.round(closeButtonRect?.width ?? 0),
+          closeIconFill: closeIconStyle?.fill,
+          closeIconHeight: Math.round(closeIconRect?.height ?? 0),
+          closeIconWidth: Math.round(closeIconRect?.width ?? 0),
+          dangerColor,
+          detailClientWidth: detail?.clientWidth ?? 0,
+          detailColor: detailStyle?.color,
+          detailContentRight,
+          detailOverflow: detailStyle?.overflow,
+          detailScrollWidth: detail?.scrollWidth ?? 0,
+          detailTextOverflow: detailStyle?.textOverflow,
+          detailWhiteSpace: detailStyle?.whiteSpace,
+          mode: document.documentElement.dataset.themeEffectiveMode,
+          notificationColor: notificationStyle?.color,
+          notificationHeight: Math.round(notificationRect?.height ?? 0),
+          notificationWidth: Math.round(notificationRect?.width ?? 0),
+          closeButtonLeft: closeButtonRect?.left ?? 0,
+          titleColor: titleStyle?.color,
+          titleContentRight,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(darkNotification.result.value.mode, "dark");
+    assert.equal(
+      darkNotification.result.value.background,
+      darkNotification.result.value.appBackground,
+    );
+    assert.equal(darkNotification.result.value.borderTopWidth, "0px");
+    assert.equal(darkNotification.result.value.borderRightWidth, "0px");
+    assert.equal(darkNotification.result.value.borderTopStyle, "none");
+    assert.equal(darkNotification.result.value.borderRightStyle, "none");
+    assert.equal(
+      darkNotification.result.value.notificationColor,
+      darkNotification.result.value.dangerColor,
+    );
+    assert.equal(
+      darkNotification.result.value.buttonColor,
+      darkNotification.result.value.dangerColor,
+    );
+    assert.equal(
+      darkNotification.result.value.closeIconFill,
+      darkNotification.result.value.dangerColor,
+    );
+    assert.equal(
+      darkNotification.result.value.titleColor,
+      darkNotification.result.value.dangerColor,
+    );
+    assert.equal(
+      darkNotification.result.value.detailColor,
+      darkNotification.result.value.dangerColor,
+    );
+    assert.equal(darkNotification.result.value.closeButtonWidth, 24);
+    assert.equal(darkNotification.result.value.closeButtonHeight, 24);
+    assert.equal(darkNotification.result.value.closeIconWidth, 16);
+    assert.equal(darkNotification.result.value.closeIconHeight, 16);
+    assert.equal(darkNotification.result.value.closeButtonTop, "9px");
+    assert.equal(darkNotification.result.value.closeButtonRight, "9px");
+    assert.equal(darkNotification.result.value.closeButtonTopInset, 9);
+    assert.equal(darkNotification.result.value.closeButtonRightInset, 9);
+    assert.ok(
+      darkNotification.result.value.titleContentRight <=
+        darkNotification.result.value.closeButtonLeft,
+    );
+    assert.ok(
+      darkNotification.result.value.detailContentRight <=
+        darkNotification.result.value.closeButtonLeft,
+    );
+    assert.equal(darkNotification.result.value.detailOverflow, "hidden");
+    assert.equal(darkNotification.result.value.detailTextOverflow, "ellipsis");
+    assert.equal(darkNotification.result.value.detailWhiteSpace, "nowrap");
+    assert.ok(
+      darkNotification.result.value.detailScrollWidth >
+        darkNotification.result.value.detailClientWidth,
+    );
+    const darkNotificationScreenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    mkdirSync(dirname(outputDarkNotification), { recursive: true });
+    writeFileSync(
+      outputDarkNotification,
+      Buffer.from(darkNotificationScreenshot.data, "base64"),
+    );
+    const darkCloseStartedAt = Date.now();
+    const darkCloseButtonClick = await dispatchMouseClick(
+      cdp,
+      '.reader-preview-notification[data-kind="error"] .reader-preview-notification-close-button',
+    );
+    assert.equal(darkCloseButtonClick.width, 24);
+    assert.equal(darkCloseButtonClick.height, 24);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAttribute('data-closing') === 'true'`,
+      500,
+    );
+    const darkClosingStartedInMs = Date.now() - darkCloseStartedAt;
+    assert.ok(darkClosingStartedInMs <= 500);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"]') === null`,
+      Math.max(1, 1_000 - (Date.now() - darkCloseStartedAt)),
+    );
+    const darkRemovedInMs = Date.now() - darkCloseStartedAt;
+    assert.ok(darkRemovedInMs <= 1_000);
+
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfError)}`,
+    );
+
+    await cdp.send("Emulation.clearDeviceMetricsOverride");
     await cdp.send("Emulation.setEmulatedMedia", { media: "print" });
 
     const printLayout = await cdp.send("Runtime.evaluate", {
@@ -365,23 +881,41 @@ async function main() {
         .match(/\/Type\s*\/Page\b/g) ?? []
     ).length;
     assert.ok(pageCount >= 2, `expected multi-page PDF, got ${pageCount} pages`);
-    console.log(
+    writeFileSync(
+      1,
       JSON.stringify(
         {
           status: "passed",
           outputPdf,
           outputGlobalScalingPdf,
           outputHighDpiPdf,
+          outputDarkNotification,
+          darkNotification: {
+            actualRightInset: darkNotification.result.value.closeButtonRightInset,
+            actualTopInset: darkNotification.result.value.closeButtonTopInset,
+            dangerColor: darkNotification.result.value.dangerColor,
+            darkClosingStartedInMs,
+            darkErrorTimerIds: darkErrorTimerRecorder.result.value.scheduledTimerIds,
+            darkRemovedInMs,
+          },
           pageCount,
           bytes: statSync(outputPdf).size,
           globalScalingBytes: statSync(outputGlobalScalingPdf).size,
           highDpiBytes: statSync(outputHighDpiPdf).size,
           fixedOverwideLayout: fixedOverwideLayout.result.value,
           globalScalingLayout: globalScalingLayout.result.value,
+          notificationDismissal: {
+            clearedTimerIds: timerRecorder.result.value.clearedTimerIds,
+            exportButtonClick,
+            successAutoCloseTimerId,
+            successCloseButtonClick,
+            successClosingStartedInMs,
+            successRemovedInMs,
+          },
         },
         null,
         2,
-      ),
+      ) + "\n",
     );
   } finally {
     chromeProcess?.kill();
@@ -454,8 +988,8 @@ async function connectToPage(port) {
   throw new Error("Could not connect to Chromium CDP page");
 }
 
-async function waitForExpression(cdp, expression) {
-  const deadline = Date.now() + 30_000;
+async function waitForExpression(cdp, expression, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const result = await cdp.send("Runtime.evaluate", {
       expression,
@@ -471,6 +1005,49 @@ async function waitForExpression(cdp, expression) {
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
+async function dispatchMouseClick(cdp, selector) {
+  const center = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      const rect = element?.getBoundingClientRect();
+      if (!element || !rect || rect.width === 0 || rect.height === 0) return null;
+      return {
+        height: Math.round(rect.height),
+        width: Math.round(rect.width),
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    })()`,
+    returnByValue: true,
+  });
+  assert.ok(center.result.value, `Missing clickable element: ${selector}`);
+
+  const { x, y } = center.result.value;
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x,
+    y,
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+    type: "mousePressed",
+    x,
+    y,
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    button: "left",
+    buttons: 0,
+    clickCount: 1,
+    type: "mouseReleased",
+    x,
+    y,
+  });
+
+  return center.result.value;
 }
 
 class CdpConnection {
