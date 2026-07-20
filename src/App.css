@@ -1138,11 +1138,11 @@ body,
   width: 100%;
   max-width: 100%;
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  border: 0;
   border-radius: 14px;
   background: var(--app-bg);
   color: var(--text-primary);
-  padding: 11px 14px;
+  padding: 12px 15px;
   box-shadow:
     0 22px 46px color-mix(in srgb, #000 34%, transparent),
     0 8px 20px color-mix(in srgb, var(--accent) 22%, transparent),
@@ -1176,8 +1176,8 @@ body,
 
 .reader-preview-notification-close-button {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 9px;
+  right: 9px;
   display: grid;
   width: 24px;
   height: 24px;
@@ -1207,7 +1207,6 @@ body,
 }
 
 .reader-preview-notification[data-kind="error"] {
-  border-color: color-mix(in srgb, var(--button-danger-bg) 60%, var(--border-soft));
   color: var(--button-danger-bg);
 }
 

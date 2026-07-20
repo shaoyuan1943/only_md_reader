@@ -65,6 +65,10 @@ async function main() {
     );
     assert.match(
       appCss,
+      /\.reader-preview-notification\s*{[^}]*border:\s*0;[^}]*padding:\s*12px 15px;/s,
+    );
+    assert.match(
+      appCss,
       /\.reader-preview-notification-close-button svg\s*{[^}]*fill:\s*currentColor;/s,
     );
     viteProcess = await ensureViteServer();
@@ -151,12 +155,19 @@ async function main() {
         const closeIcon = closeButton?.querySelector('svg');
         const closeButtonRect = closeButton?.getBoundingClientRect();
         const closeIconRect = closeIcon?.getBoundingClientRect();
+        const closeButtonStyle = closeButton ? getComputedStyle(closeButton) : null;
         return {
           background: style?.backgroundColor,
           borderRadius: style?.borderRadius,
+          borderTopStyle: style?.borderTopStyle,
+          borderTopWidth: style?.borderTopWidth,
           closeButtonHeight: Math.round(closeButtonRect?.height ?? 0),
           closeButtonLabel: closeButton?.getAttribute('aria-label'),
+          closeButtonRight: closeButtonStyle?.right,
+          closeButtonRightInset: Math.round((notificationRect?.right ?? 0) - (closeButtonRect?.right ?? 0)),
           closeButtonTitle: closeButton?.getAttribute('title'),
+          closeButtonTop: closeButtonStyle?.top,
+          closeButtonTopInset: Math.round((closeButtonRect?.top ?? 0) - (notificationRect?.top ?? 0)),
           closeButtonWidth: Math.round(closeButtonRect?.width ?? 0),
           closeIconHeight: Math.round(closeIconRect?.height ?? 0),
           closeIconWidth: Math.round(closeIconRect?.width ?? 0),
@@ -183,8 +194,14 @@ async function main() {
     assert.equal(notification.result.value.stackWidth, 324);
     assert.equal(notification.result.value.notificationWidth, 324);
     assert.equal(notification.result.value.borderRadius, "14px");
+    assert.equal(notification.result.value.borderTopWidth, "0px");
+    assert.equal(notification.result.value.borderTopStyle, "none");
     assert.equal(notification.result.value.closeButtonLabel, "关闭通知");
     assert.equal(notification.result.value.closeButtonTitle, "关闭通知");
+    assert.equal(notification.result.value.closeButtonTop, "9px");
+    assert.equal(notification.result.value.closeButtonRight, "9px");
+    assert.equal(notification.result.value.closeButtonTopInset, 9);
+    assert.equal(notification.result.value.closeButtonRightInset, 9);
     assert.equal(notification.result.value.closeButtonWidth, 24);
     assert.equal(notification.result.value.closeButtonHeight, 24);
     assert.equal(notification.result.value.closeIconWidth, 16);
@@ -502,7 +519,6 @@ async function main() {
         return {
           appBackground,
           background: notificationStyle?.backgroundColor,
-          borderColor: notificationStyle?.borderColor,
           borderRightStyle: notificationStyle?.borderRightStyle,
           borderRightWidth: notificationStyle?.borderRightWidth,
           borderTopStyle: notificationStyle?.borderTopStyle,
@@ -541,11 +557,10 @@ async function main() {
       darkNotification.result.value.background,
       darkNotification.result.value.appBackground,
     );
-    assert.notEqual(darkNotification.result.value.borderColor, "rgba(0, 0, 0, 0)");
-    assert.equal(darkNotification.result.value.borderTopWidth, "1px");
-    assert.equal(darkNotification.result.value.borderRightWidth, "1px");
-    assert.equal(darkNotification.result.value.borderTopStyle, "solid");
-    assert.equal(darkNotification.result.value.borderRightStyle, "solid");
+    assert.equal(darkNotification.result.value.borderTopWidth, "0px");
+    assert.equal(darkNotification.result.value.borderRightWidth, "0px");
+    assert.equal(darkNotification.result.value.borderTopStyle, "none");
+    assert.equal(darkNotification.result.value.borderRightStyle, "none");
     assert.equal(
       darkNotification.result.value.notificationColor,
       darkNotification.result.value.dangerColor,
@@ -570,18 +585,10 @@ async function main() {
     assert.equal(darkNotification.result.value.closeButtonHeight, 24);
     assert.equal(darkNotification.result.value.closeIconWidth, 16);
     assert.equal(darkNotification.result.value.closeIconHeight, 16);
-    assert.equal(darkNotification.result.value.closeButtonTop, "8px");
-    assert.equal(darkNotification.result.value.closeButtonRight, "8px");
-    assert.equal(
-      darkNotification.result.value.closeButtonTopInset,
-      parseFloat(darkNotification.result.value.closeButtonTop) +
-        parseFloat(darkNotification.result.value.borderTopWidth),
-    );
-    assert.equal(
-      darkNotification.result.value.closeButtonRightInset,
-      parseFloat(darkNotification.result.value.closeButtonRight) +
-        parseFloat(darkNotification.result.value.borderRightWidth),
-    );
+    assert.equal(darkNotification.result.value.closeButtonTop, "9px");
+    assert.equal(darkNotification.result.value.closeButtonRight, "9px");
+    assert.equal(darkNotification.result.value.closeButtonTopInset, 9);
+    assert.equal(darkNotification.result.value.closeButtonRightInset, 9);
     assert.ok(
       darkNotification.result.value.titleContentRight <=
         darkNotification.result.value.closeButtonLeft,

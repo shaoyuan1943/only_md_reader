@@ -92,6 +92,9 @@ void test("PDF export notifications expose a compact close control", () => {
   const notificationRule = getCssRuleBody(".reader-preview-notification");
   const closeButtonRule = getCssRuleBody(".reader-preview-notification-close-button");
   const closeIconRule = getCssRuleBody(".reader-preview-notification-close-button svg");
+  const errorNotificationRule = getCssRuleBody(
+    '.reader-preview-notification[data-kind="error"]',
+  );
   const titleRule = getCssRuleBodyContainingSelector(
     ".reader-preview-notification-title",
     "padding-right",
@@ -102,12 +105,18 @@ void test("PDF export notifications expose a compact close control", () => {
   );
 
   assert.match(notificationRule, /\bposition:\s*relative;/);
+  assert.match(notificationRule, /\bborder:\s*0;/);
+  assert.match(notificationRule, /\bpadding:\s*12px 15px;/);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "top"), 9);
+  assert.equal(getCssPxDeclaration(closeButtonRule, "right"), 9);
   assert.equal(getCssPxDeclaration(closeButtonRule, "width"), 24);
   assert.equal(getCssPxDeclaration(closeButtonRule, "height"), 24);
   assert.equal(getCssPxDeclaration(closeIconRule, "width"), 16);
   assert.equal(getCssPxDeclaration(closeIconRule, "height"), 16);
   assert.equal(getCssPxDeclaration(titleRule, "padding-right"), 28);
   assert.equal(getCssPxDeclaration(detailRule, "padding-right"), 28);
+  assert.match(errorNotificationRule, /\bcolor:\s*var\(--button-danger-bg\);/);
+  assert.doesNotMatch(errorNotificationRule, /\bborder(?:-[a-z]+)?:/);
 
   const closeHandler = readerWindowTsx.match(
     /const closeReaderNotification = useCallback\(\(id: string\) => \{(?<body>[\s\S]*?)\n {2}\}, \[\]\);/,
