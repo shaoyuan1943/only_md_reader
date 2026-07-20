@@ -22,6 +22,10 @@ const outputNotification = resolve(
   root,
   "output/playwright/pdf-export-notification.png",
 );
+const outputDarkNotification = resolve(
+  root,
+  "output/playwright/pdf-export-notification-dark.png",
+);
 const qaUrl = "http://127.0.0.1:1420/tools/reader-ui-qa.html";
 const qaLongPdfFileName =
   "reader-ui-qa-document-with-an-intentionally-long-export-file-name (2).pdf";
@@ -394,6 +398,151 @@ async function main() {
       `document.querySelector('.reader-preview-notification[data-kind="error"]') === null`,
     );
 
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error&theme=dark` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+    await cdp.send("Runtime.evaluate", {
+      expression:
+        "document.querySelector('.reader-preview-pdf-export-button')?.click()",
+    });
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"] .reader-preview-notification-detail')?.textContent === ${JSON.stringify(qaLongPdfError)}`,
+    );
+    const darkNotification = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        const notification = document.querySelector('.reader-preview-notification[data-kind="error"]');
+        const closeButton = notification?.querySelector('.reader-preview-notification-close-button');
+        const closeIcon = closeButton?.querySelector('svg');
+        const title = notification?.querySelector('.reader-preview-notification-title');
+        const detail = notification?.querySelector('.reader-preview-notification-detail');
+        const notificationRect = notification?.getBoundingClientRect();
+        const closeButtonRect = closeButton?.getBoundingClientRect();
+        const closeIconRect = closeIcon?.getBoundingClientRect();
+        const titleRect = title?.getBoundingClientRect();
+        const detailRect = detail?.getBoundingClientRect();
+        const notificationStyle = notification ? getComputedStyle(notification) : null;
+        const closeButtonStyle = closeButton ? getComputedStyle(closeButton) : null;
+        const closeIconStyle = closeIcon ? getComputedStyle(closeIcon) : null;
+        const titleStyle = title ? getComputedStyle(title) : null;
+        const detailStyle = detail ? getComputedStyle(detail) : null;
+        const colorProbe = document.createElement('span');
+        colorProbe.style.backgroundColor = rootStyle.getPropertyValue('--app-bg');
+        document.body.append(colorProbe);
+        const appBackground = getComputedStyle(colorProbe).backgroundColor;
+        colorProbe.remove();
+        const titleContentRight = (titleRect?.left ?? 0) + (title?.clientWidth ?? 0) - parseFloat(titleStyle?.paddingRight ?? '0');
+        const detailContentRight = (detailRect?.left ?? 0) + (detail?.clientWidth ?? 0) - parseFloat(detailStyle?.paddingRight ?? '0');
+        return {
+          appBackground,
+          background: notificationStyle?.backgroundColor,
+          borderColor: notificationStyle?.borderColor,
+          buttonColor: closeButtonStyle?.color,
+          closeButtonHeight: Math.round(closeButtonRect?.height ?? 0),
+          closeButtonTop: closeButtonStyle?.top,
+          closeButtonTopInset: Math.round((closeButtonRect?.top ?? 0) - (notificationRect?.top ?? 0)),
+          closeButtonRight: closeButtonStyle?.right,
+          closeButtonRightInset: Math.round((notificationRect?.right ?? 0) - (closeButtonRect?.right ?? 0)),
+          closeButtonWidth: Math.round(closeButtonRect?.width ?? 0),
+          closeIconFill: closeIconStyle?.fill,
+          closeIconHeight: Math.round(closeIconRect?.height ?? 0),
+          closeIconWidth: Math.round(closeIconRect?.width ?? 0),
+          detailClientWidth: detail?.clientWidth ?? 0,
+          detailColor: detailStyle?.color,
+          detailContentRight,
+          detailOverflow: detailStyle?.overflow,
+          detailScrollWidth: detail?.scrollWidth ?? 0,
+          detailTextOverflow: detailStyle?.textOverflow,
+          detailWhiteSpace: detailStyle?.whiteSpace,
+          mode: document.documentElement.dataset.themeEffectiveMode,
+          notificationColor: notificationStyle?.color,
+          notificationHeight: Math.round(notificationRect?.height ?? 0),
+          notificationWidth: Math.round(notificationRect?.width ?? 0),
+          closeButtonLeft: closeButtonRect?.left ?? 0,
+          titleColor: titleStyle?.color,
+          titleContentRight,
+        };
+      })()`,
+      returnByValue: true,
+    });
+    assert.equal(darkNotification.result.value.mode, "dark");
+    assert.equal(
+      darkNotification.result.value.background,
+      darkNotification.result.value.appBackground,
+    );
+    assert.notEqual(darkNotification.result.value.borderColor, "rgba(0, 0, 0, 0)");
+    assert.equal(
+      darkNotification.result.value.buttonColor,
+      darkNotification.result.value.notificationColor,
+    );
+    assert.equal(
+      darkNotification.result.value.closeIconFill,
+      darkNotification.result.value.notificationColor,
+    );
+    assert.equal(
+      darkNotification.result.value.titleColor,
+      darkNotification.result.value.notificationColor,
+    );
+    assert.equal(
+      darkNotification.result.value.detailColor,
+      darkNotification.result.value.notificationColor,
+    );
+    assert.equal(darkNotification.result.value.closeButtonWidth, 24);
+    assert.equal(darkNotification.result.value.closeButtonHeight, 24);
+    assert.equal(darkNotification.result.value.closeIconWidth, 16);
+    assert.equal(darkNotification.result.value.closeIconHeight, 16);
+    assert.equal(darkNotification.result.value.closeButtonTop, "8px");
+    assert.equal(darkNotification.result.value.closeButtonRight, "8px");
+    assert.ok([8, 9].includes(darkNotification.result.value.closeButtonTopInset));
+    assert.ok([8, 9].includes(darkNotification.result.value.closeButtonRightInset));
+    assert.ok(
+      darkNotification.result.value.titleContentRight <=
+        darkNotification.result.value.closeButtonLeft,
+    );
+    assert.ok(
+      darkNotification.result.value.detailContentRight <=
+        darkNotification.result.value.closeButtonLeft,
+    );
+    assert.equal(darkNotification.result.value.detailOverflow, "hidden");
+    assert.equal(darkNotification.result.value.detailTextOverflow, "ellipsis");
+    assert.equal(darkNotification.result.value.detailWhiteSpace, "nowrap");
+    assert.ok(
+      darkNotification.result.value.detailScrollWidth >
+        darkNotification.result.value.detailClientWidth,
+    );
+    const darkNotificationScreenshot = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    mkdirSync(dirname(outputDarkNotification), { recursive: true });
+    writeFileSync(
+      outputDarkNotification,
+      Buffer.from(darkNotificationScreenshot.data, "base64"),
+    );
+    const darkCloseButtonClick = await dispatchMouseClick(
+      cdp,
+      '.reader-preview-notification[data-kind="error"] .reader-preview-notification-close-button',
+    );
+    assert.equal(darkCloseButtonClick.width, 24);
+    assert.equal(darkCloseButtonClick.height, 24);
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"]')?.getAttribute('data-closing') === 'true'`,
+    );
+    await waitForExpression(
+      cdp,
+      `document.querySelector('.reader-preview-notification[data-kind="error"]') === null`,
+    );
+
+    await cdp.send("Page.navigate", { url: `${qaUrl}?pdfExport=error` });
+    await waitForExpression(
+      cdp,
+      "document.querySelector('.markdown-rendered-document h1')?.textContent?.includes('Reader QA Document') === true",
+    );
+
     await cdp.send("Runtime.evaluate", {
       expression:
         "document.querySelector('.reader-preview-pdf-export-button')?.click()",
@@ -642,6 +791,7 @@ async function main() {
           outputPdf,
           outputGlobalScalingPdf,
           outputHighDpiPdf,
+          outputDarkNotification,
           pageCount,
           bytes: statSync(outputPdf).size,
           globalScalingBytes: statSync(outputGlobalScalingPdf).size,

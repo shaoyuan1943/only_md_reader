@@ -19,11 +19,13 @@ import { validateThemeTokenBundle } from "../src/shared/theme/theme-schema.ts";
 import warmPaper from "../src/shared/theme/themes/warm-paper.json";
 
 const theme = validateThemeTokenBundle(warmPaper);
+const qaSearchParams = new URLSearchParams(window.location.search);
+const qaThemeMode = qaSearchParams.get("theme") === "dark" ? "dark" : "light";
 let currentSettings: ReaderSettings = {
   ...defaultReaderSettings,
   bodyFontFamily: "Georgia",
   codeFontFamily: "Consolas",
-  themeMode: "light",
+  themeMode: qaThemeMode,
 };
 
 declare global {
@@ -195,7 +197,7 @@ const qaLongPdfFileName =
   "reader-ui-qa-document-with-an-intentionally-long-export-file-name (2).pdf";
 const qaLongPdfError =
   "无法写入目标 PDF 文件，请确认目标目录存在、文件未被其他程序占用且当前账户具有写入权限。";
-const qaPdfExportMode = new URLSearchParams(window.location.search).get("pdfExport");
+const qaPdfExportMode = qaSearchParams.get("pdfExport");
 const qaPdfExportApi: PdfExportApi | undefined =
   qaPdfExportMode === "success"
     ? {
