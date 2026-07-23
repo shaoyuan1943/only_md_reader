@@ -800,12 +800,9 @@ void test("reader window uses floating outline and reading cards without hard di
   );
   assert.match(
     appCss,
-    /\.reader-preview-outline-card\s*{[^}]*\bbox-shadow:\s*var\(--reader-outline-card-shadow\);/s,
+    /\.reader-preview-outline-card,\s*\.reader-preview-reading-card\s*{[^}]*\bbox-shadow:\s*var\(--reader-card-shadow\);/s,
   );
-  assert.match(
-    appCss,
-    /\.reader-preview-reading-card\s*{[^}]*\bbox-shadow:\s*var\(--reader-card-shadow\);/s,
-  );
+  assert.doesNotMatch(appCss, /--reader-outline-card-shadow:/);
   assert.doesNotMatch(appCss, /\.reader-preview-outline[^{]*{[^}]*border-right:/s);
 });
 
@@ -1002,7 +999,7 @@ void test("reader windows allow the opened markdown directory for asset image lo
   assert.match(readerWindowsRs, /\.allow_directory\([^,]+,\s*true\)/s);
 });
 
-void test("reader window implements formal scroll chrome and layered card shadows", () => {
+void test("reader window implements formal scroll chrome and uniform card shadows", () => {
   assert.match(readerWindowTsx, /reader-preview-scrollbar-hotzone/);
   assert.match(readerWindowTsx, /reader-preview-scrollbar-thumb/);
   assert.match(readerWindowTsx, /reader-preview-outline-item/);
@@ -1012,15 +1009,14 @@ void test("reader window implements formal scroll chrome and layered card shadow
   assert.match(readerWindowTsx, /setPointerCapture/);
   assert.match(readerWindowTsx, /onClick/);
 
-  assert.match(appCss, /--reader-outline-card-shadow:/);
-  assert.match(appCss, /--reader-card-shadow:/);
   assert.match(
     appCss,
-    /\.reader-preview-outline-card\s*{[^}]*\bbox-shadow:\s*var\(--reader-outline-card-shadow\);/s,
+    /\.reader-preview-shell\s*{[^}]*--reader-card-shadow:\s*0 0 24px -8px[^;]*,\s*0 0 8px -2px[^;]*;/s,
   );
+  assert.doesNotMatch(appCss, /--reader-outline-card-shadow:/);
   assert.match(
     appCss,
-    /\.reader-preview-reading-card\s*{[^}]*\bbox-shadow:\s*var\(--reader-card-shadow\);/s,
+    /\.reader-preview-outline-card,\s*\.reader-preview-reading-card\s*{[^}]*\bbox-shadow:\s*var\(--reader-card-shadow\);/s,
   );
   assert.match(appCss, /\.reader-preview-outline-card::before/);
   assert.match(appCss, /\.reader-preview-reading-card::before/);
