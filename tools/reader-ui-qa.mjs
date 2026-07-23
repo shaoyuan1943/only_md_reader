@@ -18,8 +18,27 @@ const chromePath = resolve(
 const outputDir = resolve(repoRoot, "output", "playwright");
 
 const viewports = [
-  { name: "desktop-1920", width: 1920, height: 1080, deviceScaleFactor: 1 },
-  { name: "min-reader-hidpi", width: 1320, height: 560, deviceScaleFactor: 2 },
+  {
+    name: "desktop-1920-light",
+    width: 1920,
+    height: 1080,
+    deviceScaleFactor: 1,
+    theme: "light",
+  },
+  {
+    name: "desktop-1920-dark",
+    width: 1920,
+    height: 1080,
+    deviceScaleFactor: 1,
+    theme: "dark",
+  },
+  {
+    name: "min-reader-hidpi",
+    width: 1320,
+    height: 560,
+    deviceScaleFactor: 2,
+    theme: "light",
+  },
 ];
 
 const MIN_READING_CARD_WIDTH = 880;
@@ -71,7 +90,8 @@ async function main() {
         deviceScaleFactor: viewport.deviceScaleFactor,
         mobile: false,
       });
-      await cdp.send("Page.navigate", { url: qaUrl });
+      const viewportUrl = `${qaUrl}?theme=${viewport.theme}`;
+      await cdp.send("Page.navigate", { url: viewportUrl });
       await waitForDomContentLoaded(cdp);
       await waitForExpression(
         cdp,
@@ -108,6 +128,21 @@ async function main() {
       assert.ok(
         initialLayout.readingCardWidth >= MIN_READING_CARD_WIDTH,
         `reading card is too narrow for the approved reader layout: ${initialLayout.readingCardWidth}px`,
+      );
+      assert.equal(
+        initialLayout.outlineCardShadow,
+        initialLayout.readingCardShadow,
+        "outline and reading cards must use the same computed shadow",
+      );
+      assert.match(initialLayout.readingCardShadow, /0px 0px 24px -8px/);
+      assert.match(initialLayout.readingCardShadow, /0px 0px 8px -2px/);
+      assert.equal(Math.round(initialLayout.outlineCardWidth), 336);
+      assert.equal(initialLayout.cardGap, 30);
+      assert.equal(initialLayout.readingCardLeft, 384);
+      assert.equal(Math.round(initialLayout.readingCardWidth), viewport.width - 402);
+      assert.equal(
+        initialLayout.readerDocumentWidth,
+        Math.min(860, viewport.width - 594),
       );
       assert.match(initialLayout.readerBodyFontVariable, /Georgia/);
       assert.match(initialLayout.markdownFontFamily, /Georgia/);
@@ -1143,6 +1178,7 @@ async function collectLayout(cdp) {
       wrappingTable?.querySelectorAll("td") ?? [],
     ).find((cell) => cell.textContent?.includes("破坏透传低延迟"));
     const markdownDocument = document.querySelector(".markdown-rendered-document");
+    const readerDocument = document.querySelector(".reader-preview-document");
     const codeBlock = document.querySelector(".markdown-code-block");
     const inlineCode = Array.from(
       document.querySelectorAll(".markdown-rendered-document code:not(pre code)"),
@@ -1167,6 +1203,7 @@ async function collectLayout(cdp) {
     );
     const outlineRect = outline?.getBoundingClientRect();
     const readingRect = reading?.getBoundingClientRect();
+    const readerDocumentRect = readerDocument?.getBoundingClientRect();
     const outlineToggleRect = outlineToggle?.getBoundingClientRect();
     const selectionCopyBubbleRect = selectionCopyBubble?.getBoundingClientRect();
     const codeCopyButtonRect = codeCopyButton?.getBoundingClientRect();
@@ -1175,6 +1212,8 @@ async function collectLayout(cdp) {
     const filePathTextRect = filePathText?.getBoundingClientRect();
     const filePathCopyButtonRect = filePathCopyButton?.getBoundingClientRect();
     const settingsStyle = settings ? getComputedStyle(settings) : null;
+    const outlineStyle = outline ? getComputedStyle(outline) : null;
+    const readingStyle = reading ? getComputedStyle(reading) : null;
     const filePathTextStyle = filePathText ? getComputedStyle(filePathText) : null;
     const filePathCopyButtonStyle = filePathCopyButton
       ? getComputedStyle(filePathCopyButton)
@@ -1252,6 +1291,7 @@ async function collectLayout(cdp) {
       markdownError: Boolean(document.querySelector(".markdown-render-error")),
       hasOutline: document.querySelectorAll(".reader-preview-outline-item").length >= 2,
       hasOutlineCard: Boolean(outline),
+      outlineCardShadow: outlineStyle?.boxShadow ?? "",
       outlineHidden: layout?.dataset.outlineHidden === "true",
       outlineToggleDirection: outlineToggle?.getAttribute("data-direction") ?? "",
       outlineToggleVisible: Boolean(outlineToggle && fitsViewport(outlineToggle)),
@@ -1274,6 +1314,7 @@ async function collectLayout(cdp) {
           (left, index, edges) => index === 0 || left > edges[index - 1],
         ),
       hasReadingCard: Boolean(reading),
+      readingCardShadow: readingStyle?.boxShadow ?? "",
       hasCodeBlock: Boolean(document.querySelector(".markdown-code-block")),
       indentedCodeHasReaderClass: Boolean(indentedCodeBlock),
       indentedCodeCopyButtonExists: Boolean(indentedCodeCopyButton),
@@ -1465,6 +1506,7 @@ async function collectLayout(cdp) {
       outlineCardWidth: outlineRect?.width ?? 0,
       readingCardLeft: Math.round(readingRect?.left ?? 0),
       readingCardWidth: readingRect?.width ?? 0,
+      readerDocumentWidth: Math.round(readerDocumentRect?.width ?? 0),
       cardGap:
         outlineRect && readingRect
           ? Math.round(readingRect.left - outlineRect.right)

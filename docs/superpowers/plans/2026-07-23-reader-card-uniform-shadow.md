@@ -23,7 +23,7 @@
 - Modify: `src/app-shell.test.ts:789-810`
 - Modify: `src/app-shell.test.ts:1015-1024`
 
-- [ ] **Step 1: Replace the old two-shadow assertions**
+- [x] **Step 1: Replace the old two-shadow assertions**
 
 Update the existing reader-card tests to require one shared variable and one shared selector rule:
 
@@ -48,7 +48,7 @@ padding: 56px 96px 112px;
 max-width: min(100%, var(--reader-content-max-width, 860px));
 ```
 
-- [ ] **Step 2: Run the static test and verify it fails**
+- [x] **Step 2: Run the static test and verify it fails**
 
 Run:
 
@@ -64,7 +64,7 @@ Expected: FAIL because `src/App.css` still defines `--reader-outline-card-shadow
 - Modify: `src/App.css:269-325`
 - Modify: `src/App.css:412-414`
 
-- [ ] **Step 1: Replace the shadow variables**
+- [x] **Step 1: Replace the shadow variables**
 
 Replace the two current variables with:
 
@@ -76,7 +76,7 @@ Replace the two current variables with:
 
 Do not change `--reader-outline-width`, `--reader-card-gap`, `--window-card-inset`, or `.reader-preview-scroll` padding.
 
-- [ ] **Step 2: Apply the same shadow in the shared card rule**
+- [x] **Step 2: Apply the same shadow in the shared card rule**
 
 Use:
 
@@ -96,7 +96,7 @@ Use:
 
 Remove the individual `box-shadow` declarations from `.reader-preview-outline-card` and `.reader-preview-reading-card`. Do not change any other declaration in those rules.
 
-- [ ] **Step 3: Run the static test and verify it passes**
+- [x] **Step 3: Run the static test and verify it passes**
 
 Run:
 
@@ -106,7 +106,7 @@ pnpm test:unit
 
 Expected: all unit tests PASS.
 
-- [ ] **Step 4: Commit the CSS and static test**
+- [x] **Step 4: Commit the CSS and static test**
 
 ```powershell
 git add -- src/App.css src/app-shell.test.ts
@@ -121,7 +121,7 @@ git commit -m "style: balance reader card shadows"
 - Modify: `tools/reader-ui-qa.mjs:92-111`
 - Modify: `tools/reader-ui-qa.mjs:1248-1482`
 
-- [ ] **Step 1: Add a dark desktop QA scenario**
+- [x] **Step 1: Add a dark desktop QA scenario**
 
 Replace the viewport list with:
 
@@ -158,7 +158,7 @@ const viewportUrl = `${qaUrl}?theme=${viewport.theme}`;
 await cdp.send("Page.navigate", { url: viewportUrl });
 ```
 
-- [ ] **Step 2: Collect computed card shadows and document geometry**
+- [x] **Step 2: Collect computed card shadows and document geometry**
 
 Inside `collectLayout`, obtain:
 
@@ -177,7 +177,7 @@ readingCardShadow: readingStyle?.boxShadow ?? "",
 readerDocumentWidth: Math.round(readerDocumentRect?.width ?? 0),
 ```
 
-- [ ] **Step 3: Assert identical directionless shadows**
+- [x] **Step 3: Assert identical directionless shadows**
 
 After `initialLayout` is collected, add:
 
@@ -191,7 +191,7 @@ assert.match(initialLayout.readingCardShadow, /0px 0px 24px -8px/);
 assert.match(initialLayout.readingCardShadow, /0px 0px 8px -2px/);
 ```
 
-- [ ] **Step 4: Assert the existing geometry remains unchanged**
+- [x] **Step 4: Assert the existing geometry remains unchanged**
 
 Add:
 
@@ -211,7 +211,7 @@ assert.equal(
 
 These formulas preserve the existing `18px + 336px + 30px` left geometry and the reading card's `18px` right inset plus `96px` internal padding on both sides.
 
-- [ ] **Step 5: Run reader UI QA**
+- [x] **Step 5: Run reader UI QA**
 
 Run:
 
@@ -226,7 +226,7 @@ Expected:
 - Computed shadows are equal in both themes.
 - Card and document geometry assertions pass unchanged.
 
-- [ ] **Step 6: Inspect the generated screenshots**
+- [x] **Step 6: Inspect the generated screenshots**
 
 Open:
 
@@ -243,7 +243,7 @@ Confirm that each card has visible shadow on all four sides and the middle gap i
 **Files:**
 - Modify: `docs/implementation-worklist.md:173-187`
 
-- [ ] **Step 1: Run frontend verification**
+- [x] **Step 1: Run frontend verification**
 
 Run:
 
@@ -256,7 +256,7 @@ pnpm build
 
 Expected: every command exits with code 0.
 
-- [ ] **Step 2: Build the fresh test executable**
+- [x] **Step 2: Build the fresh test executable**
 
 Run:
 
@@ -266,7 +266,7 @@ pnpm tauri build --no-bundle --ci
 
 Expected: exit code 0 and a fresh `src-tauri/target/release/only-md-reader.exe`.
 
-- [ ] **Step 3: Update the worklist with only actual results**
+- [x] **Step 3: Update the worklist with only actual results**
 
 Append one verification record under item 6.1 containing:
 
@@ -276,10 +276,9 @@ Append one verification record under item 6.1 containing:
 - light/dark/minimum-window screenshot inspection results;
 - any validation command that could not run and its concrete cause.
 
-- [ ] **Step 4: Commit QA and documentation**
+- [x] **Step 4: Commit QA and documentation**
 
 ```powershell
 git add -- tools/reader-ui-qa.mjs docs/implementation-worklist.md docs/superpowers/plans/2026-07-23-reader-card-uniform-shadow.md
 git commit -m "test: verify uniform reader card shadows"
 ```
-
