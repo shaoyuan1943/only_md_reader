@@ -19,6 +19,13 @@
   -webkit-text-size-adjust: 100%;
 }
 
+:root,
+:root *,
+:root *::before,
+:root *::after {
+  font-variant-ligatures: none;
+}
+
 body {
   margin: 0;
   min-width: 320px;

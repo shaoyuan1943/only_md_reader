@@ -155,6 +155,9 @@ async function main() {
         optionPadding: optionStyles.padding,
         scrollerPaddingRight: scrollerStyles.paddingRight,
         selectedOptionBackground: selectedOptionStyles.backgroundColor,
+        rootFontVariantLigatures: rootStyles.fontVariantLigatures,
+        frameFontVariantLigatures: frameStyles.fontVariantLigatures,
+        optionFontVariantLigatures: optionStyles.fontVariantLigatures,
         scrollbarWidth: styles.scrollbarWidth,
         hotzoneOpacity: hotzoneStyles.opacity,
         hotzoneCursor: hotzoneStyles.cursor,
@@ -174,6 +177,9 @@ async function main() {
     });
 
     assert.equal(scrollCheck.hasThumb, true);
+    assert.equal(scrollCheck.rootFontVariantLigatures, "none");
+    assert.equal(scrollCheck.frameFontVariantLigatures, "none");
+    assert.equal(scrollCheck.optionFontVariantLigatures, "none");
     assert.equal(scrollCheck.canScroll, "true");
     assert.ok(scrollCheck.scrollHeight > scrollCheck.clientHeight);
     assert.equal(scrollCheck.menuPadding, "0px");

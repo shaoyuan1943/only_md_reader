@@ -423,6 +423,14 @@
   - 验收标准：性能优化阶段重新评估 chunk 组成和本地启动体验；如仍接受当前体积，应记录理由；如需要优化，应给出拆包或按需加载方案，并复验 `pnpm build` / `pnpm tauri build`。
   - 验证记录：将 Shiki runtime 改为 `import("shiki")` 动态加载，避免首屏 app shell 直接吞下完整高亮运行时；`src/app-shell.test.ts` 增加 `markdown renderer loads the Shiki runtime on demand instead of the app shell` 守门。2026-07-02 执行 `pnpm build` 成功，主入口 `assets/index-3nUP2oVQ.js` 约 183.09 kB / gzip 56.49 kB；执行 `pnpm tauri build` 成功，生成 `src-tauri/target/release/only-md-reader.exe`、MSI 和 NSIS。仍有 `wasm`、`cpp`、`emacs-lisp`、Shiki 运行时动态 chunk 超过 500 kB 的 Vite warning；当前接受为“代码高亮按需资源”而非首屏阻塞，不阻塞本阶段。后续若要继续压体积，应收敛默认 Shiki 语言 / theme 集合或更精细配置 dynamic import。
 
+- [x] 13.9 全局关闭所有字体连字渲染。完成时间：2026-07-23
+  - 验收标准：打开文件窗口、阅读窗口、设置窗口、Markdown 正文、行内代码、代码块、KaTeX、控件、伪元素和 PDF 输出均关闭可选字体连字；规则不随正文或代码字体选择而变化，源码中的 `->` 等字符组合保持普通字符形态。
+  - 实现记录：在所有正式 React 窗口共用的 `src/shared/theme/theme.css` 中，对 `:root`、全部后代元素及其 `::before` / `::after` 伪元素统一设置 `font-variant-ligatures: none`。没有修改 Markdown 内容、Shiki 高亮结果、字体选择设置或 PDF 导出管线。
+  - 红绿测试：先在 `src/app-shell.test.ts` 增加共享主题全局连字规则守门，旧样式得到预期 RED；最小 CSS 修改后同一测试转为 GREEN。完整 `pnpm test` 共 193/193 项通过。
+  - 浏览器验证：`pnpm qa:settings-ui` 实测根节点、设置面板和字体下拉选项的 `fontVariantLigatures` 均为 `none`；`pnpm qa:reader-ui` 在 `1920x1080@1x` 和 `1320x560@2x` 下实测根节点、Georgia 正文、Consolas 代码块、行内代码、设置按钮、按钮伪元素和 KaTeX 均为 `none`。`pnpm qa:pdf-export` 通过，确认复用同一渲染 DOM 的打印链路未回归。
+  - 构建验证：`pnpm lint`、`pnpm format:check`、`pnpm build`、`git diff --check` 和 `pnpm tauri build --no-bundle --ci` 均通过；构建仍只有本清单 13.8 已记录的 Shiki 动态大 chunk 非阻塞警告，未生成安装包。新测试 EXE 为 `E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，大小 `45,327,360` bytes，LastWriteTime `2026-07-23 11:52:45.576 +08:00`，SHA-256 为 `1C2BAFD916BD64B63FD782710F0B7857187127B80C8D3EC5397AE3390177D4C9`。
+  - 未验证：尝试使用 Windows 桌面辅助工具截取新 EXE 的实机字形时，工具误绑定到 Codex 窗口；已在任何点击或输入前停止，因此不把该结果计入阅读器实机目视验证。当前完成状态以真实 Chromium 计算样式、固定 UI/PDF QA 和新 EXE 构建为依据。
+
 ## 14. 自动化测试与视觉验证
 
 - [x] 14.1 建立单元测试。完成时间：2026-07-02 10:04

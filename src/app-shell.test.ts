@@ -51,6 +51,10 @@ const tauriCargoToml = readFileSync(
   "utf8",
 );
 const appCss = readFileSync(new URL("./App.css", import.meta.url), "utf8");
+const themeCss = readFileSync(
+  new URL("./shared/theme/theme.css", import.meta.url),
+  "utf8",
+);
 const mainTsx = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 const openFileWindowTsx = readFileSync(
   new URL("./features/open-file/OpenFileWindow.tsx", import.meta.url),
@@ -936,6 +940,14 @@ void test("reader markdown text and code use the bundled Maple font stack", () =
     /\.markdown-code-block\s*{[^}]*\bcolor:\s*var\(--text-primary\);[^}]*\bfont-size:\s*var\(--reader-code-font-size,\s*16px\);[^}]*\bline-height:\s*var\(--reader-line-height,\s*1\.86\);/s,
   );
   assert.match(appCss, /\.markdown-code-block code\s*{[^}]*font-family:\s*inherit;/s);
+});
+
+void test("all app text disables font ligatures globally", () => {
+  assert.match(mainTsx, /import "\.\/shared\/theme\/theme\.css"/);
+  assert.match(
+    themeCss,
+    /:root,\s*:root \*,\s*:root \*::before,\s*:root \*::after\s*{[^}]*font-variant-ligatures:\s*none;/s,
+  );
 });
 
 void test("local KaTeX and Eva theme resources are bundled through the app entry", () => {

@@ -118,6 +118,13 @@ async function main() {
       );
       assert.match(initialLayout.readerCodeFontVariable, /Consolas/);
       assert.match(initialLayout.indentedCodeFontFamily, /Consolas/);
+      assert.equal(initialLayout.rootFontVariantLigatures, "none");
+      assert.equal(initialLayout.markdownFontVariantLigatures, "none");
+      assert.equal(initialLayout.codeBlockFontVariantLigatures, "none");
+      assert.equal(initialLayout.inlineCodeFontVariantLigatures, "none");
+      assert.equal(initialLayout.settingsFontVariantLigatures, "none");
+      assert.equal(initialLayout.katexFontVariantLigatures, "none");
+      assert.equal(initialLayout.settingsBeforeFontVariantLigatures, "none");
       assert.equal(initialLayout.indentedCodeHasReaderClass, true);
       assert.equal(initialLayout.indentedCodeCopyButtonExists, true);
       assert.equal(initialLayout.longCodeScrollerHasHorizontalOverflow, true);
@@ -1136,6 +1143,11 @@ async function collectLayout(cdp) {
       wrappingTable?.querySelectorAll("td") ?? [],
     ).find((cell) => cell.textContent?.includes("破坏透传低延迟"));
     const markdownDocument = document.querySelector(".markdown-rendered-document");
+    const codeBlock = document.querySelector(".markdown-code-block");
+    const inlineCode = Array.from(
+      document.querySelectorAll(".markdown-rendered-document code:not(pre code)"),
+    ).find((code) => code.textContent?.includes("client->connect"));
+    const katex = document.querySelector(".katex");
     const settings = document.querySelector(".reader-preview-settings-button");
     const filePathRow = document.querySelector(".reader-preview-file-path-row");
     const filePathText = document.querySelector(".reader-preview-file-path");
@@ -1370,8 +1382,25 @@ async function collectLayout(cdp) {
       readerCodeFontVariable: getComputedStyle(documentElement)
         .getPropertyValue("--reader-code-font-family")
         .trim(),
+      rootFontVariantLigatures: getComputedStyle(documentElement).fontVariantLigatures,
       markdownFontFamily: markdownDocument
         ? getComputedStyle(markdownDocument).fontFamily
+        : "",
+      markdownFontVariantLigatures: markdownDocument
+        ? getComputedStyle(markdownDocument).fontVariantLigatures
+        : "",
+      codeBlockFontVariantLigatures: codeBlock
+        ? getComputedStyle(codeBlock).fontVariantLigatures
+        : "",
+      inlineCodeFontVariantLigatures: inlineCode
+        ? getComputedStyle(inlineCode).fontVariantLigatures
+        : "",
+      settingsFontVariantLigatures: settingsStyle?.fontVariantLigatures ?? "",
+      katexFontVariantLigatures: katex
+        ? getComputedStyle(katex).fontVariantLigatures
+        : "",
+      settingsBeforeFontVariantLigatures: settings
+        ? getComputedStyle(settings, "::before").fontVariantLigatures
         : "",
       outlineFontFamily: outline ? getComputedStyle(outline).fontFamily : "",
       outlineItemFontFamily: outlineItem
