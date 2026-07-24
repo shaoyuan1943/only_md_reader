@@ -539,7 +539,7 @@ void test("open file settings and reader cards use one shared window inset", () 
 void test("open file and settings main cards share the approved dark shadow", () => {
   assert.match(
     appCss,
-    /html,\s*body,\s*#root\s*{[^}]*--window-main-card-shadow:\s*var\(--panel-shadow\);/s,
+    /:root\s*{[^}]*--window-main-card-shadow:\s*var\(--panel-shadow\);/s,
   );
   assert.match(
     appCss,
