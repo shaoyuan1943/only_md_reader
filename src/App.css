@@ -284,6 +284,10 @@ body,
   color: var(--text-primary);
 }
 
+:root[data-theme-effective-mode="dark"] .reader-preview-shell {
+  --reader-card-shadow: 0 0 24px -8px rgb(0 0 0 / 52%), 0 0 8px -2px rgb(0 0 0 / 34%);
+}
+
 .reader-preview-layout {
   --reader-card-gap: 30px;
 

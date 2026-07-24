@@ -1013,6 +1013,10 @@ void test("reader window implements formal scroll chrome and uniform card shadow
     appCss,
     /\.reader-preview-shell\s*{[^}]*--reader-card-shadow:\s*0 0 24px -8px[^;]*,\s*0 0 8px -2px[^;]*;/s,
   );
+  assert.match(
+    appCss,
+    /:root\[data-theme-effective-mode="dark"\]\s+\.reader-preview-shell\s*{[^}]*--reader-card-shadow:\s*0 0 24px -8px rgb\(0 0 0 \/ 52%\),\s*0 0 8px -2px rgb\(0 0 0 \/ 34%\);/s,
+  );
   assert.doesNotMatch(appCss, /--reader-outline-card-shadow:/);
   assert.match(
     appCss,
