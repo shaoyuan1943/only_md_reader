@@ -134,6 +134,12 @@ async function main() {
         initialLayout.readingCardShadow,
         "outline and reading cards must use the same computed shadow",
       );
+      if (viewport.theme === "dark") {
+        assert.match(initialLayout.readingCardShadow, /rgba?\(0, 0, 0/);
+        assert.doesNotMatch(initialLayout.readingCardShadow, /194, 138, 99/);
+      } else {
+        assert.doesNotMatch(initialLayout.readingCardShadow, /rgba?\(0, 0, 0/);
+      }
       assert.match(initialLayout.readingCardShadow, /0px 0px 24px -8px/);
       assert.match(initialLayout.readingCardShadow, /0px 0px 8px -2px/);
       assert.equal(Math.round(initialLayout.outlineCardWidth), 336);
