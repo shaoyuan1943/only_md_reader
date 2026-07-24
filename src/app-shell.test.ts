@@ -536,6 +536,25 @@ void test("open file settings and reader cards use one shared window inset", () 
   assert.doesNotMatch(appCss, /\.reader-preview-layout\s*{[^}]*\bpadding:\s*34px;/s);
 });
 
+void test("open file and settings main cards share the approved dark shadow", () => {
+  assert.match(
+    appCss,
+    /html,\s*body,\s*#root\s*{[^}]*--window-main-card-shadow:\s*var\(--panel-shadow\);/s,
+  );
+  assert.match(
+    appCss,
+    /:root\[data-theme-effective-mode="dark"\]\s*{[^}]*--window-main-card-shadow:\s*0 0 24px -8px rgb\(0 0 0 \/ 52%\),\s*0 0 8px -2px rgb\(0 0 0 \/ 34%\);/s,
+  );
+  assert.match(
+    appCss,
+    /\.open-file-window\s*{[^}]*box-shadow:\s*var\(--window-main-card-shadow\);/s,
+  );
+  assert.match(
+    appCss,
+    /\.settings-window-frame\s*{[^}]*box-shadow:\s*var\(--window-main-card-shadow\);/s,
+  );
+});
+
 void test("open file shell and card use ui_colors background tokens", () => {
   assert.match(appCss, /\.app-shell\s*{[^}]*\bbackground:[^}]*var\(--app-bg\);/s);
   assert.match(
