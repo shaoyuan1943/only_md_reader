@@ -8,6 +8,8 @@
 
 **Tech Stack:** CSS, React, TypeScript, Node test runner, Playwright Chromium, Vite, Tauri 2.
 
+**Implementation note:** Runtime QA exposed that declaring the default variable on `#root` would shadow the effective-dark value inherited from `:root`; the final implementation therefore keeps both the default and dark override at `:root`. The new open-file and settings QA runners use dedicated strict Vite ports (`1425` and `1426`) plus the repository's existing direct-CDP Chromium pattern so they cannot accidentally validate another worktree's server. The open-file shell still has `18px` layout padding; its preserved `1px` content-box border keeps the existing `17px` outer-edge measurement rather than changing card width.
+
 ---
 
 ## File Structure
@@ -30,7 +32,7 @@
 - Modify: `src/App.css:1-43`
 - Modify: `src/App.css:1365-1398`
 
-- [ ] **Step 1: Write the failing static regression test**
+- [x] **Step 1: Write the failing static regression test**
 
 Add a focused test near the existing shared window inset tests:
 
@@ -57,7 +59,7 @@ void test("open file and settings main cards share the approved dark shadow", ()
 
 Keep the existing inset, `22px` radius, surface background, and open-file border assertions.
 
-- [ ] **Step 2: Run the unit suite and verify RED**
+- [x] **Step 2: Run the unit suite and verify RED**
 
 Run:
 
@@ -67,7 +69,7 @@ pnpm test:unit
 
 Expected: exactly the new regression test fails because both cards still consume `--panel-shadow` directly and the shared variable does not exist.
 
-- [ ] **Step 3: Implement the minimal CSS**
+- [x] **Step 3: Implement the minimal CSS**
 
 Add the default variable inside the existing `html, body, #root` rule:
 
@@ -99,7 +101,7 @@ Change only these two existing declarations:
 
 Do not change either selector's border, radius, width, height, positioning, overflow, or background declarations.
 
-- [ ] **Step 4: Run the unit suite and verify GREEN**
+- [x] **Step 4: Run the unit suite and verify GREEN**
 
 Run:
 
@@ -109,7 +111,7 @@ pnpm test:unit
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit the production change and static test**
+- [x] **Step 5: Commit the production change and static test**
 
 ```powershell
 git add -- src/App.css src/app-shell.test.ts
@@ -125,7 +127,7 @@ git commit -m "style: align dark window card shadows"
 - Create: `tools/open-file-ui-qa.tsx`
 - Create: `tools/open-file-ui-qa.mjs`
 
-- [ ] **Step 1: Require the QA command and fixture files**
+- [x] **Step 1: Require the QA command and fixture files**
 
 Extend the QA workflow test:
 
@@ -144,7 +146,7 @@ Add these paths to the committed visual QA fixture loop:
 "../tools/open-file-ui-qa.mjs",
 ```
 
-- [ ] **Step 2: Run the workflow test and verify RED**
+- [x] **Step 2: Run the workflow test and verify RED**
 
 Run:
 
@@ -154,7 +156,7 @@ node --test --experimental-strip-types src/qa-workflows.test.ts
 
 Expected: FAIL because the command and three files do not exist.
 
-- [ ] **Step 3: Add the package command**
+- [x] **Step 3: Add the package command**
 
 Add:
 
@@ -164,7 +166,7 @@ Add:
 
 next to `qa:settings-ui`.
 
-- [ ] **Step 4: Add the browser fixture**
+- [x] **Step 4: Add the browser fixture**
 
 Create `tools/open-file-ui-qa.html`:
 
@@ -224,7 +226,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 );
 ```
 
-- [ ] **Step 5: Add the Chromium runner**
+- [x] **Step 5: Add the Chromium runner**
 
 Create `tools/open-file-ui-qa.mjs` following the repository's existing Playwright runtime location and Vite lifecycle. For both `light` and `dark` at the fixed native open-window viewport, collect:
 
@@ -284,7 +286,7 @@ output/playwright/open-file-ui-dark.png
 
 The runner must start a strict local Vite server only when port `1420` is unavailable, close only the process it started, use `tools/verify/node_modules/playwright/index.js`, and print a JSON result containing both scenario metrics and screenshot paths.
 
-- [ ] **Step 6: Run workflow and open-file QA**
+- [x] **Step 6: Run workflow and open-file QA**
 
 Run:
 
@@ -295,7 +297,7 @@ pnpm qa:open-file-ui
 
 Expected: both commands pass; the light and dark screenshots are freshly generated.
 
-- [ ] **Step 7: Inspect both screenshots**
+- [x] **Step 7: Inspect both screenshots**
 
 Open the two files at original resolution and confirm:
 
@@ -308,11 +310,11 @@ Open the two files at original resolution and confirm:
 **Files:**
 - Modify: `tools/settings-ui-qa.mjs:430-630`
 
-- [ ] **Step 1: Record light settings frame shadow and geometry**
+- [x] **Step 1: Record light settings frame shadow and geometry**
 
 Before the first settings screenshot, collect `.settings-window-frame` box shadow, computed `--panel-shadow`, radius, and four viewport insets. Assert light frame shadow equals the computed panel shadow, radius is `22px`, and every inset is `18px`.
 
-- [ ] **Step 2: Record dark settings frame shadow**
+- [x] **Step 2: Record dark settings frame shadow**
 
 After the existing dark theme button click, include:
 
@@ -352,7 +354,7 @@ assert.deepEqual(darkDropdownCheck.frameInsets, {
 
 Do not change existing dropdown shadow assertions; the dropdown remains outside this feature.
 
-- [ ] **Step 3: Run settings QA**
+- [x] **Step 3: Run settings QA**
 
 Run:
 
@@ -362,11 +364,11 @@ pnpm qa:settings-ui
 
 Expected: existing settings interactions and dropdown checks still pass, plus the new light/dark main-frame checks.
 
-- [ ] **Step 4: Inspect the dark settings screenshot**
+- [x] **Step 4: Inspect the dark settings screenshot**
 
 Open the fresh dark screenshot at original resolution and confirm that only the main frame shadow changed; the dropdown retains its stronger independent dark shadow and all controls remain aligned.
 
-- [ ] **Step 5: Commit both runtime QA additions**
+- [x] **Step 5: Commit both runtime QA additions**
 
 ```powershell
 git add -- package.json src/qa-workflows.test.ts tools/open-file-ui-qa.html tools/open-file-ui-qa.tsx tools/open-file-ui-qa.mjs tools/settings-ui-qa.mjs
@@ -379,7 +381,7 @@ git commit -m "test: verify window main card shadows"
 - Modify: `docs/implementation-worklist.md`
 - Modify: `docs/superpowers/plans/2026-07-24-window-main-card-dark-shadow.md`
 
-- [ ] **Step 1: Re-run all affected visual QA**
+- [x] **Step 1: Re-run all affected visual QA**
 
 ```powershell
 pnpm qa:open-file-ui
@@ -389,7 +391,7 @@ pnpm qa:reader-ui
 
 Expected: all pass; reader geometry and shadow behavior remain unchanged.
 
-- [ ] **Step 2: Run full frontend verification**
+- [x] **Step 2: Run full frontend verification**
 
 ```powershell
 pnpm test
@@ -401,7 +403,7 @@ git diff --check
 
 Expected: all commands exit with code `0`; Vite may emit only the already-recorded oversized chunk warning.
 
-- [ ] **Step 3: Build a fresh test EXE**
+- [x] **Step 3: Build a fresh test EXE**
 
 ```powershell
 pnpm tauri build --no-bundle --ci
@@ -409,7 +411,7 @@ pnpm tauri build --no-bundle --ci
 
 Expected: exit code `0`, a fresh `src-tauri/target/release/only-md-reader.exe`, and no MSI/NSIS package.
 
-- [ ] **Step 4: Record exact results**
+- [x] **Step 4: Record exact results**
 
 Append a verification record that includes:
 
@@ -421,7 +423,7 @@ Append a verification record that includes:
 - full command results and known non-blocking warning;
 - exact EXE path, byte size, timestamp, and SHA-256.
 
-- [ ] **Step 5: Mark the plan complete and commit**
+- [x] **Step 5: Mark the plan complete and commit**
 
 Change every plan checkbox to `[x]`, then run:
 
