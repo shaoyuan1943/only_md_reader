@@ -13,6 +13,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"vite.config.ts\" --max-warnings=0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\" \"src-tauri/capabilities/**/*.json\" \"src-tauri/tauri.conf.json\" \"*.{json,ts,js,html}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,md}\" \"src-tauri/capabilities/**/*.json\" \"src-tauri/tauri.conf.json\" \"*.{json,ts,js,html}\"",
+    "qa:open-file-ui": "node tools/open-file-ui-qa.mjs",
     "qa:settings-ui": "node tools/settings-ui-qa.mjs",
     "qa:reader-ui": "node tools/reader-ui-qa.mjs",
     "qa:markdown-performance": "node --experimental-strip-types tools/markdown-performance-check.mjs",

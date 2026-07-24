@@ -13,6 +13,7 @@ const releaseWorkflow = readFileSync(
 );
 
 void test("package exposes stable QA entrypoints for reader, performance, and screenshots", () => {
+  assert.match(packageJson, /"qa:open-file-ui":\s*"node tools\/open-file-ui-qa\.mjs"/);
   assert.match(packageJson, /"qa:settings-ui":\s*"node tools\/settings-ui-qa\.mjs"/);
   assert.match(packageJson, /"qa:reader-ui":\s*"node tools\/reader-ui-qa\.mjs"/);
   assert.match(
@@ -27,6 +28,9 @@ void test("package exposes stable QA entrypoints for reader, performance, and sc
 
 void test("visual QA scripts and browser fixtures are committed under tools", () => {
   for (const relativePath of [
+    "../tools/open-file-ui-qa.html",
+    "../tools/open-file-ui-qa.tsx",
+    "../tools/open-file-ui-qa.mjs",
     "../tools/reader-ui-qa.html",
     "../tools/reader-ui-qa.tsx",
     "../tools/reader-ui-qa.mjs",

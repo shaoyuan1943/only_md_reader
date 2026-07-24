@@ -7,7 +7,7 @@ import { dirname, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 const repoRoot = resolve(import.meta.dirname, "..");
-const qaUrl = "http://127.0.0.1:1420/tools/settings-ui-qa.html";
+const qaUrl = "http://127.0.0.1:1426/tools/settings-ui-qa.html";
 const chromePath = resolve(
   process.env.LOCALAPPDATA ?? "",
   "ms-playwright",
@@ -88,10 +88,7 @@ async function main() {
 
     assert.equal(health.title, "Only MD Reader Settings QA");
     assert.ok(health.bodyText.length > 0, "Settings QA page rendered blank content");
-    assert.match(
-      health.bodyText,
-      /超宽内容可能触发整页缩小，导致不同文件字号显示不同/,
-    );
+    assert.match(health.bodyText, /超宽内容可能触发整页缩小，导致不同文件字号显示不同/);
     assert.equal(health.hasViteOverlay, false);
     assert.deepEqual(health.consoleErrors, []);
 
@@ -183,9 +180,7 @@ async function main() {
     assert.equal(scrollCheck.canScroll, "true");
     assert.ok(scrollCheck.scrollHeight > scrollCheck.clientHeight);
     assert.equal(scrollCheck.menuPadding, "0px");
-    assert.ok(
-      scrollCheck.menuBoxShadow.startsWith(scrollCheck.computedDropdownShadow),
-    );
+    assert.ok(scrollCheck.menuBoxShadow.startsWith(scrollCheck.computedDropdownShadow));
     assert.ok(Math.abs(scrollCheck.optionInsetLeft) < 1);
     assert.ok(Math.abs(scrollCheck.optionInsetRight) < 1);
     assert.equal(scrollCheck.optionPadding, "0px 42px 0px 18px");
@@ -438,6 +433,44 @@ async function main() {
     assert.equal(pdfToggleCheck.rowInsidePanel, true);
     assert.deepEqual(pdfToggleCheck.lastPatch, { pdfAllowGlobalScaling: true });
 
+    const lightFrameCheck = await evaluate(cdp, async () => {
+      document.querySelector(".settings-segmented button:first-child").click();
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+      await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
+
+      const frame = document.querySelector(".settings-window-frame");
+      const shell = document.querySelector(".settings-window-shell");
+      const frameRect = frame.getBoundingClientRect();
+      const frameStyles = getComputedStyle(frame);
+      const shellStyles = getComputedStyle(shell);
+      const shadowProbe = document.createElement("div");
+      shadowProbe.style.boxShadow = "var(--panel-shadow)";
+      document.body.append(shadowProbe);
+      const panelShadow = getComputedStyle(shadowProbe).boxShadow;
+      shadowProbe.remove();
+
+      return {
+        effectiveTheme: document.documentElement.dataset.themeEffectiveMode,
+        boxShadow: frameStyles.boxShadow,
+        panelShadow,
+        borderRadius: frameStyles.borderRadius,
+        shellPadding: shellStyles.padding,
+        insetLeft: frameRect.left,
+        insetTop: frameRect.top,
+        insetRight: window.innerWidth - frameRect.right,
+        insetBottom: window.innerHeight - frameRect.bottom,
+      };
+    });
+
+    assert.equal(lightFrameCheck.effectiveTheme, "light");
+    assert.equal(lightFrameCheck.boxShadow, lightFrameCheck.panelShadow);
+    assert.equal(lightFrameCheck.borderRadius, "22px");
+    assert.equal(lightFrameCheck.shellPadding, "18px");
+    assert.equal(lightFrameCheck.insetLeft, 18);
+    assert.equal(lightFrameCheck.insetTop, 18);
+    assert.equal(lightFrameCheck.insetRight, 18);
+    assert.equal(lightFrameCheck.insetBottom, 18);
+
     const screenshot = await cdp.send("Page.captureScreenshot", {
       format: "png",
       fromSurface: true,
@@ -570,9 +603,7 @@ async function main() {
     });
 
     const darkDropdownCheck = await evaluate(cdp, async () => {
-      document
-        .querySelector(".settings-segmented button:nth-child(2)")
-        .click();
+      document.querySelector(".settings-segmented button:nth-child(2)").click();
       await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
       await new Promise((resolveDelay) => requestAnimationFrame(resolveDelay));
 
@@ -585,6 +616,11 @@ async function main() {
       const menuBoxShadow = getComputedStyle(
         codeSelect.querySelector(".select-menu"),
       ).boxShadow;
+      const frame = document.querySelector(".settings-window-frame");
+      const shell = document.querySelector(".settings-window-shell");
+      const frameRect = frame.getBoundingClientRect();
+      const frameStyles = getComputedStyle(frame);
+      const shellStyles = getComputedStyle(shell);
       const dropdownShadow = getComputedStyle(document.documentElement)
         .getPropertyValue("--dropdown-shadow")
         .trim();
@@ -599,6 +635,13 @@ async function main() {
         menuBoxShadow,
         dropdownShadow,
         menuUsesDropdownShadow: menuBoxShadow.startsWith(computedDropdownShadow),
+        frameBoxShadow: frameStyles.boxShadow,
+        frameBorderRadius: frameStyles.borderRadius,
+        shellPadding: shellStyles.padding,
+        frameInsetLeft: frameRect.left,
+        frameInsetTop: frameRect.top,
+        frameInsetRight: window.innerWidth - frameRect.right,
+        frameInsetBottom: window.innerHeight - frameRect.bottom,
       };
     });
 
@@ -606,6 +649,16 @@ async function main() {
     assert.equal(darkDropdownCheck.menuUsesDropdownShadow, true);
     assert.match(darkDropdownCheck.menuBoxShadow, /rgba\(0, 0, 0, 0\.72\)/);
     assert.match(darkDropdownCheck.menuBoxShadow, /rgba\(0, 0, 0, 0\.58\)/);
+    assert.match(darkDropdownCheck.frameBoxShadow, /rgba\(0, 0, 0, 0\.52\)/);
+    assert.match(darkDropdownCheck.frameBoxShadow, /rgba\(0, 0, 0, 0\.34\)/);
+    assert.match(darkDropdownCheck.frameBoxShadow, /0px 0px 24px -8px/);
+    assert.match(darkDropdownCheck.frameBoxShadow, /0px 0px 8px -2px/);
+    assert.equal(darkDropdownCheck.frameBorderRadius, "22px");
+    assert.equal(darkDropdownCheck.shellPadding, "18px");
+    assert.equal(darkDropdownCheck.frameInsetLeft, 18);
+    assert.equal(darkDropdownCheck.frameInsetTop, 18);
+    assert.equal(darkDropdownCheck.frameInsetRight, 18);
+    assert.equal(darkDropdownCheck.frameInsetBottom, 18);
 
     const darkDropdownScreenshot = await cdp.send("Page.captureScreenshot", {
       format: "png",
@@ -633,6 +686,7 @@ async function main() {
           pdfToggleRestingCheck,
           pdfToggleHoverCheck,
           pdfToggleCheck,
+          lightFrameCheck,
           highDpiLayoutCheck,
           dropdownStackingCheck,
           darkDropdownCheck,
@@ -664,7 +718,18 @@ async function ensureViteServer() {
 
   const viteChild = spawn(
     "cmd.exe",
-    ["/d", "/s", "/c", "pnpm", "dev", "--host", "127.0.0.1"],
+    [
+      "/d",
+      "/s",
+      "/c",
+      "pnpm",
+      "dev",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "1426",
+      "--strictPort",
+    ],
     {
       detached: true,
       cwd: repoRoot,
