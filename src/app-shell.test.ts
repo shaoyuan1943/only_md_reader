@@ -50,6 +50,10 @@ const tauriCargoToml = readFileSync(
   new URL("../src-tauri/Cargo.toml", import.meta.url),
   "utf8",
 );
+const tauriCargoLock = readFileSync(
+  new URL("../src-tauri/Cargo.lock", import.meta.url),
+  "utf8",
+);
 const appCss = readFileSync(new URL("./App.css", import.meta.url), "utf8");
 const themeCss = readFileSync(
   new URL("./shared/theme/theme.css", import.meta.url),
@@ -1592,12 +1596,28 @@ void test("settings UI follows docs/ui/settings.html and preserves save failure 
   );
 });
 
-void test("settings window displays the package version", () => {
-  assert.equal(packageJson.version, "0.1.7");
+void test("settings window displays the synchronized package version", () => {
+  const tauriPackageStart = tauriCargoToml.indexOf("[package]");
+  const tauriPackageEnd = tauriCargoToml.indexOf("\n[", tauriPackageStart + 1);
+  const tauriPackageBlock = tauriCargoToml.slice(
+    tauriPackageStart,
+    tauriPackageEnd === -1 ? undefined : tauriPackageEnd,
+  );
+  const tauriLockPackageBlock = tauriCargoLock
+    .split(/(?=^\[\[package\]\]\r?$)/m)
+    .find((packageBlock) => /^name = "only-md-reader"$/m.test(packageBlock));
+
+  assert.equal(packageJson.version, "0.1.8");
   assert.equal(tauriConfig.version, packageJson.version);
-  assert.match(
-    settingsWindowTsx,
-    new RegExp(`settings-version">MD极简阅读 · v${packageJson.version}<`),
+  assert.notEqual(tauriPackageStart, -1);
+  assert.match(tauriPackageBlock, /^name = "only-md-reader"$/m);
+  assert.match(tauriPackageBlock, /^version = "0\.1\.8"$/m);
+  assert.ok(tauriLockPackageBlock);
+  assert.match(tauriLockPackageBlock, /^version = "0\.1\.8"$/m);
+  assert.ok(
+    settingsWindowTsx.includes(
+      `settings-version">MD极简阅读 · v${packageJson.version}<`,
+    ),
   );
 });
 
