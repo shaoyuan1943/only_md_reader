@@ -2,11 +2,14 @@
 
 用于发布前收口，不替代当前开发阶段的自动化测试。
 
-## Windows 安装
+## Windows MSI 安装
 
-- 运行 `pnpm tauri build` 生成 `.msi` 和 NSIS 安装包。
-- 安装后从开始菜单或安装目录启动应用。
-- 卸载后确认用户数据目录不被误删，除非安装器明确提供该选项。
+- 运行 `pnpm tauri build --bundles msi`，确认只生成 MSI，不生成当前版本 NSIS。
+- 运行 `pnpm qa:windows-msi`，确认版本、UpgradeCode、`iMDReader` 目录和升级动作顺序。
+- 无旧版本时，确认默认安装到 `C:\Program Files\iMDReader`，并确认安装向导允许本次修改路径。
+- 安装已知旧 MSI 后再运行新 MSI，确认旧 ProductCode 已移除、新 ProductCode 已安装。
+- 确认升级不继承旧中文目录或旧自定义目录。
+- 卸载后确认安装文件被清理，但用户数据目录不被误删。
 
 ## macOS 安装
 

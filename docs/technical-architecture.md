@@ -601,6 +601,14 @@ text/markdown
 - Windows 上不能强行接管默认程序，只注册为可选打开程序，并引导用户到系统设置确认。
 - macOS 通过 app bundle document types 参与打开方式选择。
 
+### 11.1 Windows MSI 打包与升级
+
+- Windows 只发布 MSI，不生成或发布 NSIS 安装包。
+- MSI 使用稳定 `UpgradeCode` 和 WiX `MajorUpgrade`；`RemoveExistingProducts` 调度在 `afterInstallInitialize`，使旧 MSI 在新文件写入前卸载。
+- `INSTALLDIR` 默认是 `C:\Program Files\iMDReader`。
+- 从旧版本升级时不继承旧中文目录或旧自定义目录，仍默认使用 `C:\Program Files\iMDReader`。
+- `WixUI_InstallDir` 保留本次安装的目录选择能力，用户可以主动选择新的安装目录。
+
 ## 12. 批注方案
 
 批注最后阶段实现，采用 MarkMark 类似路线：

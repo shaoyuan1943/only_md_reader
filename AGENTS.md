@@ -140,6 +140,7 @@ pnpm qa:screenshots
 - PDF 导出、打印媒体 CSS、分页或导出按钮修改：跑 `pnpm qa:pdf-export`、`pnpm qa:reader-ui` 和 `pnpm build`。
 - UI 原型截图或视觉验收资料更新：跑 `pnpm qa:screenshots`，确认截图输出到 `output/playwright/`。
 - 打包或 Tauri 原生窗口行为修改：跑相关 Rust/前端测试后，再按需要跑 `pnpm tauri build`。
+- Windows MSI 模板、版本、安装目录或发布工作流修改：除相关 Rust/前端测试外，运行 `pnpm tauri build --bundles msi` 和 `pnpm qa:windows-msi`；涉及升级行为时，按 `docs/qa/package-release-checklist.md` 完成旧版升级与全新安装验收。
 - 后续每次修改代码后，默认构建新的测试 exe，且默认不产出安装包；使用 `pnpm tauri build --no-bundle --ci`，除非用户明确要求 MSI/NSIS 安装包。
 
 ### 8.2 修改后跨功能回归验证

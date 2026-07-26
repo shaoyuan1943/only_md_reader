@@ -72,7 +72,11 @@ void test("manual and packaging acceptance checklists are available for release 
   }
 
   for (const requiredText of [
-    "Windows 安装",
+    "Windows MSI 安装",
+    "pnpm qa:windows-msi",
+    "C:\\\\Program Files\\\\iMDReader",
+    "旧 ProductCode",
+    "不生成当前版本 NSIS",
     "macOS 安装",
     "文件关联",
     "离线资源",

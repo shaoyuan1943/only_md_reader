@@ -443,6 +443,12 @@
   - 测试构建：`pnpm tauri build --no-bundle --ci` 通过，未生成 MSI/NSIS 安装包。新测试 EXE 为 `E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，大小 `45,327,872` bytes，LastWriteTime `2026-07-24 23:53:11.168 +08:00`，SHA-256 为 `DDF6F247E89D4AA017D2D12EFB5073AF0573B8135D48E181F94D4ED3C88C74BA`。
   - 未验证：本轮当前平台为 Windows；未在 macOS 实机验证。
 
+- [ ] 13.11 将 Windows MSI 升级策略和默认安装目录调整为 0.1.8 方案。完成时间：
+  - 需求：Windows 只发布 MSI；从旧 MSI 升级时先卸载旧版本再写入新版本；全新安装与升级安装均默认使用 `C:\Program Files\iMDReader`，不继承旧中文目录或旧自定义目录，本次安装仍允许用户主动选择新目录。
+  - 已实现：应用版本已同步为 `0.1.8`；WiX 使用稳定 `UpgradeCode` 和 `MajorUpgrade`，`RemoveExistingProducts` 调度在 `afterInstallInitialize`；默认目录名改为 `iMDReader`；新增红绿契约测试、只读 MSI 数据库检查入口 `pnpm qa:windows-msi` 和 Windows MSI-only 发布工作流守门。
+  - 待验证：构建并检查 0.1.8 MSI、与 0.1.7 MSI 比对 UpgradeCode / ProductCode / 版本与动作顺序、在不影响现有用户安装的前提下执行真实升级和全新安装、运行完整跨功能回归、记录测试 EXE / MSI 的大小、时间戳和 SHA-256。
+  - 平台边界：当前只针对 Windows MSI；macOS 实机仍未验证；历史 NSIS 自动卸载不在本需求兼容范围内。
+
 ## 14. 自动化测试与视觉验证
 
 - [x] 14.1 建立单元测试。完成时间：2026-07-02 10:04
@@ -476,7 +482,7 @@
 
 - [ ] 12.1 配置 Windows 打包。完成时间：
   - 需求记录：第一版 Windows 发布只产出 MSI，不产出 NSIS；`bundle.targets` 不再使用 `all`，发布构建入口应限定为 MSI，例如 `pnpm tauri build --bundles msi`。
-  - 安装目录策略：MSI 默认按 per-machine 安装到 `%ProgramFiles%\only-md-reader`；如果后续改成 per-user MSI，必须重新记录默认目录和升级/卸载行为。
+  - 安装目录策略：MSI 默认按 per-machine 安装到 `%ProgramFiles%\iMDReader`；从旧 MSI 升级时先卸载旧版本且不继承旧安装路径，本次安装仍允许用户主动选择新目录；如果后续改成 per-user MSI，必须重新记录默认目录和升级/卸载行为。
   - 用户数据策略：安装目录只放程序文件；本地持久化数据继续使用 Tauri `app_data_dir()`，Windows 当前目标路径为 `%APPDATA%\com.onlymd.reader\`，包含 `settings.json`、`settings.corrupt.json`、`window-state.json`、`recent-files.json`，不写入安装目录或 Markdown 文件所在目录。
   - 验收标准：`pnpm tauri build --bundles msi` 只生成 MSI 发布包；安装后应用可从开始菜单/安装目录启动；安装目录、卸载项、开始菜单快捷方式和应用数据目录符合上述策略；发布产物中不包含 NSIS 安装包。
 
