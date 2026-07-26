@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag, for example v0.1.5"
+        description: "Release tag, for example v0.1.8"
         required: true
-        default: "v0.1.5"
+        default: "v0.1.8"
 
 permissions:
   contents: write
@@ -27,13 +27,19 @@ jobs:
         id: release
         shell: pwsh
         run: |
+          $packageVersion = (Get-Content -Raw package.json | ConvertFrom-Json).version
+          $tauriVersion = (Get-Content -Raw src-tauri\tauri.conf.json | ConvertFrom-Json).version
+          if ($packageVersion -cne $tauriVersion) {
+            throw "Package version '$packageVersion' does not match Tauri version '$tauriVersion'."
+          }
+          $expectedTag = "v$packageVersion"
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $tag = "${{ inputs.tag_name }}"
           } else {
             $tag = "${{ github.ref_name }}"
           }
-          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
-            throw "Release tag must look like v0.1.5; got '$tag'"
+          if ($tag -cne $expectedTag) {
+            throw "Release tag must be v0.1.8 for this release (expected '$expectedTag'); got '$tag'."
           }
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 

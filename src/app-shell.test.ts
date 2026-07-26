@@ -32,6 +32,7 @@ const tauriConfig = JSON.parse(
   bundle?: {
     targets?: string[];
     windows?: {
+      allowDowngrades?: boolean;
       wix?: {
         language?: string;
         template?: string;
@@ -721,7 +722,9 @@ void test("Windows MSI exposes Markdown default-app registration and system sett
 });
 
 void test("Windows MSI removes older MSI versions before installing to the English default directory", () => {
-  const majorUpgradeTags = wixTemplate.match(/<MajorUpgrade\b[^>]*\/>/g);
+  const majorUpgradeBranches = wixTemplate.match(
+    /\{\{#if allow_downgrades\}\}\s*(?<allowDowngrades><MajorUpgrade\b[^>]*\/>)\s*\{\{else\}\}\s*(?<blockDowngrades><MajorUpgrade\b[^>]*\/>)\s*\{\{\/if\}\}/,
+  );
   const installDirDirectory = wixTemplate.match(
     /<Directory\b(?=[^>]*\bId="INSTALLDIR")[^>]*\/>/,
   );
@@ -731,10 +734,18 @@ void test("Windows MSI removes older MSI versions before installing to the Engli
 
   assert.equal(tauriConfig.productName, "MD极简阅读");
   assert.deepEqual(tauriConfig.bundle?.targets, ["msi"]);
-  assert.equal(majorUpgradeTags?.length, 2);
-  for (const majorUpgradeTag of majorUpgradeTags ?? []) {
-    assert.match(majorUpgradeTag, /Schedule="afterInstallInitialize"/);
-  }
+  assert.equal(tauriConfig.bundle?.windows?.allowDowngrades, false);
+  assert.ok(majorUpgradeBranches?.groups);
+  assert.match(majorUpgradeBranches.groups.allowDowngrades, /AllowDowngrades="yes"/);
+  assert.match(
+    majorUpgradeBranches.groups.blockDowngrades,
+    /Schedule="afterInstallInitialize"/,
+  );
+  assert.match(majorUpgradeBranches.groups.blockDowngrades, /DowngradeErrorMessage=/);
+  assert.doesNotMatch(
+    majorUpgradeBranches.groups.blockDowngrades,
+    /AllowDowngrades="yes"/,
+  );
   assert.ok(installDirDirectory);
   assert.match(installDirDirectory[0], /(?:^|\s)Name="iMDReader"(?=\s|\/?>)/);
   assert.doesNotMatch(wixTemplate, /PrevInstallDirNoName/);

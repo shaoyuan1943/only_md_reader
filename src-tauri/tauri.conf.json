@@ -38,6 +38,7 @@
     "active": true,
     "targets": ["msi"],
     "windows": {
+      "allowDowngrades": false,
       "wix": {
         "language": "zh-CN",
         "template": "wix/main.wxs",

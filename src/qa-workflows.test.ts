@@ -99,7 +99,20 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
 
   assert.match(releaseWorkflow, /Release Windows MSI/);
   assert.match(releaseWorkflow, /tags:\s*\n\s*- "v\*"/);
-  assert.match(releaseWorkflow, /\^v\\d\+\\\.\\d\+\\\.\\d\+\$/);
+  assert.match(releaseWorkflow, /description:\s*"Release tag, for example v0\.1\.8"/);
+  assert.match(releaseWorkflow, /default:\s*"v0\.1\.8"/);
+  assert.match(
+    releaseWorkflow,
+    /Get-Content -Raw package\.json\s*\|\s*ConvertFrom-Json/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /Get-Content -Raw src-tauri\\tauri\.conf\.json\s*\|\s*ConvertFrom-Json/,
+  );
+  assert.match(releaseWorkflow, /Package version .* does not match Tauri version/);
+  assert.match(releaseWorkflow, /\$expectedTag\s*=\s*"v\$packageVersion"/);
+  assert.match(releaseWorkflow, /\$tag\s+-cne\s+\$expectedTag/);
+  assert.match(releaseWorkflow, /Release tag must be v0\.1\.8/);
   assert.match(releaseWorkflow, /pnpm tauri build --bundles msi/);
   assert.match(releaseWorkflow, /NSIS artifacts were produced/);
   assert.match(releaseWorkflow, /gh release create/);
@@ -121,5 +134,36 @@ void test("Windows MSI QA normalizes WiX short and long directory names", () => 
   assert.match(
     windowsMsiQa,
     /\$current\.InstallDir = \(\$current\.InstallDir -split "\\\|"\)\[-1\]\r?\nif \(\$current\.InstallDir -cne "iMDReader"\)/,
+  );
+});
+
+void test("Windows MSI QA verifies the generated Upgrade table blocks downgrades", () => {
+  assert.match(
+    windowsMsiQa,
+    /SELECT ``UpgradeCode``,``VersionMin``,``VersionMax``,``Attributes``,``ActionProperty`` FROM ``Upgrade``/,
+  );
+  assert.match(windowsMsiQa, /WIX_DOWNGRADE_DETECTED/);
+  assert.match(windowsMsiQa, /VersionMin/);
+  assert.match(windowsMsiQa, /VersionMax/);
+  assert.match(windowsMsiQa, /OnlyDetect/);
+  assert.match(
+    windowsMsiQa,
+    /\$downgrade\.Attributes -cne \$msidbUpgradeAttributesOnlyDetect/,
+  );
+  assert.match(windowsMsiQa, /DowngradeDetected/);
+  assert.match(
+    windowsMsiQa,
+    /SELECT ``Condition``,``Description`` FROM ``LaunchCondition``/,
+  );
+  assert.match(windowsMsiQa, /NOT WIX_DOWNGRADE_DETECTED/);
+  assert.match(windowsMsiQa, /DowngradeBlockCondition/);
+  assert.match(windowsMsiQa, /\[switch\]\$IncludeDowngradeContract/);
+  assert.match(
+    windowsMsiQa,
+    /\$current = Read-MsiContract \$MsiPath -IncludeDowngradeContract/,
+  );
+  assert.match(
+    windowsMsiQa,
+    /\$previous = Read-MsiContract \(Resolve-Path -LiteralPath \$PreviousMsiPath\)\.Path\r?\n/,
   );
 });

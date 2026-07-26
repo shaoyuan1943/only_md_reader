@@ -46,8 +46,88 @@ function Get-MsiScalar {
     }
 }
 
+function Get-MsiUpgradeRows {
+    param([object]$Database)
+
+    $view = $null
+    $record = $null
+    $rows = @()
+
+    try {
+        $view = $Database.OpenView("SELECT ``UpgradeCode``,``VersionMin``,``VersionMax``,``Attributes``,``ActionProperty`` FROM ``Upgrade``")
+        [void]$view.Execute()
+
+        while ($null -ne ($record = $view.Fetch())) {
+            $rows += [pscustomobject][ordered]@{
+                UpgradeCode = $record.StringData(1)
+                VersionMin = $record.StringData(2)
+                VersionMax = $record.StringData(3)
+                Attributes = $record.IntegerData(4)
+                ActionProperty = $record.StringData(5)
+            }
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($record)
+            $record = $null
+        }
+
+        return $rows
+    }
+    finally {
+        if ($null -ne $record) {
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($record)
+        }
+        if ($null -ne $view) {
+            try {
+                [void]$view.Close()
+            }
+            finally {
+                [void][Runtime.InteropServices.Marshal]::ReleaseComObject($view)
+            }
+        }
+    }
+}
+
+function Get-MsiLaunchConditions {
+    param([object]$Database)
+
+    $view = $null
+    $record = $null
+    $rows = @()
+
+    try {
+        $view = $Database.OpenView("SELECT ``Condition``,``Description`` FROM ``LaunchCondition``")
+        [void]$view.Execute()
+
+        while ($null -ne ($record = $view.Fetch())) {
+            $rows += [pscustomobject][ordered]@{
+                Condition = $record.StringData(1)
+                Description = $record.StringData(2)
+            }
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($record)
+            $record = $null
+        }
+
+        return $rows
+    }
+    finally {
+        if ($null -ne $record) {
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($record)
+        }
+        if ($null -ne $view) {
+            try {
+                [void]$view.Close()
+            }
+            finally {
+                [void][Runtime.InteropServices.Marshal]::ReleaseComObject($view)
+            }
+        }
+    }
+}
+
 function Read-MsiContract {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [switch]$IncludeDowngradeContract
+    )
 
     $installer = $null
     $database = $null
@@ -56,7 +136,7 @@ function Read-MsiContract {
         $installer = New-Object -ComObject WindowsInstaller.Installer
         $database = $installer.OpenDatabase($Path, 0)
 
-        return [pscustomobject][ordered]@{
+        $contract = [ordered]@{
             Path = $Path
             ProductCode = Get-MsiScalar $database "SELECT ``Value`` FROM ``Property`` WHERE ``Property`` = 'ProductCode'"
             ProductName = Get-MsiScalar $database "SELECT ``Value`` FROM ``Property`` WHERE ``Property`` = 'ProductName'"
@@ -66,6 +146,12 @@ function Read-MsiContract {
             RemoveExistingProductsSequence = [int](Get-MsiScalar $database "SELECT ``Sequence`` FROM ``InstallExecuteSequence`` WHERE ``Action`` = 'RemoveExistingProducts'")
             InstallFilesSequence = [int](Get-MsiScalar $database "SELECT ``Sequence`` FROM ``InstallExecuteSequence`` WHERE ``Action`` = 'InstallFiles'")
         }
+        if ($IncludeDowngradeContract) {
+            $contract.UpgradeRows = @(Get-MsiUpgradeRows $database)
+            $contract.LaunchConditions = @(Get-MsiLaunchConditions $database)
+        }
+
+        return [pscustomobject]$contract
     }
     finally {
         if ($null -ne $database) {
@@ -91,7 +177,7 @@ if ([string]::IsNullOrWhiteSpace($MsiPath) -or -not (Test-Path -LiteralPath $Msi
 }
 
 $MsiPath = (Resolve-Path -LiteralPath $MsiPath).Path
-$current = Read-MsiContract $MsiPath
+$current = Read-MsiContract $MsiPath -IncludeDowngradeContract
 $expectedUpgradeCode = "{D282D977-779F-5080-A3EA-623A41BA26A2}"
 
 if ($current.ProductName -cne $tauriConfig.productName) {
@@ -109,6 +195,39 @@ if ($current.InstallDir -cne "iMDReader") {
 }
 if ($current.RemoveExistingProductsSequence -ge $current.InstallFilesSequence) {
     throw "RemoveExistingProducts sequence must precede InstallFiles."
+}
+
+$msidbUpgradeAttributesOnlyDetect = 2
+$downgradeRows = @(
+    $current.UpgradeRows |
+        Where-Object { $_.ActionProperty -ceq "WIX_DOWNGRADE_DETECTED" }
+)
+if ($downgradeRows.Count -ne 1) {
+    throw "Expected exactly one WIX_DOWNGRADE_DETECTED row in the MSI Upgrade table."
+}
+$downgrade = $downgradeRows[0]
+if ($downgrade.UpgradeCode.ToUpperInvariant() -cne $expectedUpgradeCode) {
+    throw "Downgrade UpgradeCode '$($downgrade.UpgradeCode)' does not match '$expectedUpgradeCode'."
+}
+if ($downgrade.VersionMin -cne $current.ProductVersion) {
+    throw "Downgrade VersionMin '$($downgrade.VersionMin)' does not match ProductVersion '$($current.ProductVersion)'."
+}
+if (-not [string]::IsNullOrWhiteSpace($downgrade.VersionMax)) {
+    throw "Downgrade VersionMax must be empty so every higher version is detected."
+}
+if ($downgrade.Attributes -cne $msidbUpgradeAttributesOnlyDetect) {
+    throw "WIX_DOWNGRADE_DETECTED must use only the Upgrade table OnlyDetect attribute."
+}
+$downgradeBlockConditions = @(
+    $current.LaunchConditions |
+        Where-Object { $_.Condition -ceq "NOT WIX_DOWNGRADE_DETECTED" }
+)
+if ($downgradeBlockConditions.Count -ne 1) {
+    throw "Expected the MSI LaunchCondition table to block WIX_DOWNGRADE_DETECTED."
+}
+$downgradeBlockCondition = $downgradeBlockConditions[0]
+if ([string]::IsNullOrWhiteSpace($downgradeBlockCondition.Description)) {
+    throw "The MSI downgrade block must provide a user-facing error message."
 }
 
 $nsisDirectory = Join-Path $bundleRoot "nsis"
@@ -146,5 +265,7 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousMsiPath)) {
     status = "passed"
     current = $current
     previous = $previous
+    DowngradeDetected = $downgrade
+    DowngradeBlockCondition = $downgradeBlockCondition
     nsisArtifactsForCurrentVersion = $nsisArtifactsForCurrentVersion
 } | ConvertTo-Json -Depth 5
