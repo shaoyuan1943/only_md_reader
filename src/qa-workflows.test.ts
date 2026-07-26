@@ -11,6 +11,10 @@ const releaseWorkflow = readFileSync(
   new URL("../.github/workflows/release-windows-msi.yml", import.meta.url),
   "utf8",
 );
+const windowsMsiQa = readFileSync(
+  new URL("../tools/windows-msi-qa.ps1", import.meta.url),
+  "utf8",
+);
 
 void test("package exposes stable QA entrypoints for reader, performance, and screenshots", () => {
   assert.match(packageJson, /"qa:open-file-ui":\s*"node tools\/open-file-ui-qa\.mjs"/);
@@ -111,4 +115,11 @@ void test("Windows MSI QA is a stable release entrypoint", () => {
     true,
   );
   assert.match(releaseWorkflow, /pnpm qa:windows-msi/);
+});
+
+void test("Windows MSI QA normalizes WiX short and long directory names", () => {
+  assert.match(
+    windowsMsiQa,
+    /\$current\.InstallDir = \(\$current\.InstallDir -split "\\\|"\)\[-1\]\r?\nif \(\$current\.InstallDir -cne "iMDReader"\)/,
+  );
 });

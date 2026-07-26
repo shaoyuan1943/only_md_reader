@@ -103,6 +103,7 @@ if ($current.ProductVersion -cne $tauriConfig.version) {
 if ($current.UpgradeCode.ToUpperInvariant() -cne $expectedUpgradeCode) {
     throw "UpgradeCode '$($current.UpgradeCode)' does not match '$expectedUpgradeCode'."
 }
+$current.InstallDir = ($current.InstallDir -split "\|")[-1]
 if ($current.InstallDir -cne "iMDReader") {
     throw "INSTALLDIR DefaultDir '$($current.InstallDir)' does not match 'iMDReader'."
 }
