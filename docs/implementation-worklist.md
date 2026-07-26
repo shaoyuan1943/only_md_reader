@@ -443,11 +443,14 @@
   - 测试构建：`pnpm tauri build --no-bundle --ci` 通过，未生成 MSI/NSIS 安装包。新测试 EXE 为 `E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，大小 `45,327,872` bytes，LastWriteTime `2026-07-24 23:53:11.168 +08:00`，SHA-256 为 `DDF6F247E89D4AA017D2D12EFB5073AF0573B8135D48E181F94D4ED3C88C74BA`。
   - 未验证：本轮当前平台为 Windows；未在 macOS 实机验证。
 
-- [ ] 13.11 将 Windows MSI 升级策略和默认安装目录调整为 0.1.8 方案。完成时间：
+- [x] 13.11 将 Windows MSI 升级策略和默认安装目录调整为 0.1.8 方案。完成时间：2026-07-26 22:03
   - 需求：Windows 只发布 MSI；从旧 MSI 升级时先卸载旧版本再写入新版本；全新安装与升级安装均默认使用 `C:\Program Files\iMDReader`，不继承旧中文目录或旧自定义目录，本次安装仍允许用户主动选择新目录。
   - 已实现：应用版本已同步为 `0.1.8`；WiX 使用稳定 `UpgradeCode` 和 `MajorUpgrade`，`RemoveExistingProducts` 调度在 `afterInstallInitialize`；默认目录名改为 `iMDReader`；新增红绿契约测试、只读 MSI 数据库检查入口 `pnpm qa:windows-msi` 和 Windows MSI-only 发布工作流守门。
-  - 待验证：构建并检查 0.1.8 MSI、与 0.1.7 MSI 比对 UpgradeCode / ProductCode / 版本与动作顺序、在不影响现有用户安装的前提下执行真实升级和全新安装、运行完整跨功能回归、记录测试 EXE / MSI 的大小、时间戳和 SHA-256。
-  - 平台边界：当前只针对 Windows MSI；macOS 实机仍未验证；历史 NSIS 自动卸载不在本需求兼容范围内。
+  - MSI 静态验收：`pnpm tauri build --bundles msi`、`pnpm qa:windows-msi` 及指定 0.1.7 MSI 的旧新对比均通过。0.1.8 ProductCode 为 `{29447052-9E27-44F4-9E81-F13E816018A9}`，0.1.7 ProductCode 为 `{F0632218-E3CA-4AC5-8A47-0C003846DE5B}`，两者共享 UpgradeCode `{D282D977-779F-5080-A3EA-623A41BA26A2}`；0.1.8 的安装目录为 `iMDReader`，`RemoveExistingProducts=1501` 早于 `InstallFiles=4000`，且未生成当前版本 NSIS。
+  - 完整回归：`pnpm test`（197/197，含 TypeScript 类型检查）、`pnpm lint`、`pnpm format:check`、`pnpm build`、`cargo test --manifest-path src-tauri\Cargo.toml`（30/30）、`cargo clippy --manifest-path src-tauri\Cargo.toml --all-targets --all-features -- -D warnings`、`pnpm qa:settings-ui`、`pnpm qa:reader-ui`、`pnpm qa:markdown-performance`、`pnpm qa:pdf-export`、`pnpm qa:screenshots` 和 `pnpm tauri build --no-bundle --ci` 均通过。性能样本 1 MiB / 5 MiB / 10 MiB 分别为 537ms / 2593ms / 7397ms。代码主题在明亮 / 暗色模式下分别实测为 `Eva Light Bold` / `Eva Dark Bold`，均有 23 个高亮 token、8 种浏览器计算颜色且 `highlightedTokenMismatches=[]`。首次运行 `pnpm qa:screenshots` 因隔离 worktree 缺少被 `.gitignore` 排除的 `tools/verify` Playwright 运行时而失败；复制主工作树中该忽略目录的 `package.json`、`package-lock.json` 和 `node_modules` 后重试通过，生成 6 张固定截图，未改动受控文件。
+  - 最终产物：测试 EXE 位于 `E:\only_md_reader\.worktrees\windows-msi-upgrade-0.1.8\src-tauri\target\release\only-md-reader.exe`，大小 `45,327,872` bytes，LastWriteTime `2026-07-26 22:01:11.941 +08:00`，SHA-256 `D68C905D934DDF149D046AE243C79AE9157F0E3F390496CB9A7DB167768A0639`；MSI 位于 `E:\only_md_reader\.worktrees\windows-msi-upgrade-0.1.8\src-tauri\target\release\bundle\msi\MD极简阅读_0.1.8_x64_zh-CN.msi`，大小 `38,371,328` bytes，LastWriteTime `2026-07-26 22:01:10.130 +08:00`，SHA-256 `E41E124319F7A529DB15BA35AD1BE739E63E36C350BF8108626314C2C747935B`。
+  - 未验证：为避免卸载或覆盖宿主现有的 0.1.6 用户安装，本轮未执行真实 0.1.7 → 0.1.8 升级、0.1.8 全新安装和卸载验收；macOS 实机仍未验证。
+  - 已知限制：历史 NSIS 自动卸载不在本需求兼容范围内；构建仍只有本清单 13.8 已记录的 Vite 大 chunk 非阻断警告。
 
 ## 14. 自动化测试与视觉验证
 
