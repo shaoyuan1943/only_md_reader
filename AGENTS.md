@@ -142,6 +142,15 @@ pnpm qa:screenshots
 - 打包或 Tauri 原生窗口行为修改：跑相关 Rust/前端测试后，再按需要跑 `pnpm tauri build`。
 - 后续每次修改代码后，默认构建新的测试 exe，且默认不产出安装包；使用 `pnpm tauri build --no-bundle --ci`，除非用户明确要求 MSI/NSIS 安装包。
 
+### 8.2 修改后跨功能回归验证
+
+每次修改代码、样式、配置或仓库内 QA 脚本后，不能只验证本次直接修改的功能；还必须验证已有功能和与本次修改无直接关系的功能没有被破坏。
+
+- 最低回归基线为：`pnpm test`、`pnpm lint`、`pnpm format:check`、`pnpm build`，以及 8.1 中列出的全部固定 QA 命令。
+- 修改 Rust / Tauri 代码时，在上述基线之外追加 `cargo test --manifest-path src-tauri\Cargo.toml` 和 `cargo clippy --manifest-path src-tauri\Cargo.toml --all-targets --all-features -- -D warnings`。
+- 代码主题属于永久回归项：`pnpm qa:reader-ui` 必须在明亮和暗色模式下验证 `Eva Light Bold` / `Eva Dark Bold` 已实际应用到 Shiki token 的浏览器计算样式，并确认同一高亮代码块存在多种 token 颜色；只检查主题名、CSS 变量或代码块存在不算通过。
+- 只要某项验证未执行、无法执行或失败，汇报中必须列入“未验证”或“已知限制”，不能把局部验证结果表述为整体完成。
+
 汇报时必须区分：
 
 - 已完成。

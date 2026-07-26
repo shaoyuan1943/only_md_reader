@@ -114,6 +114,23 @@ async function main() {
       assert.equal(initialLayout.hasOutline, true);
       assert.equal(initialLayout.hasReadingCard, true);
       assert.equal(initialLayout.hasCodeBlock, true);
+      assert.equal(
+        initialLayout.codeThemeName,
+        viewport.theme === "dark" ? "Eva Dark Bold" : "Eva Light Bold",
+      );
+      assert.ok(
+        initialLayout.highlightedTokenCount >= 3,
+        "reader QA needs a highlighted code block with multiple Shiki tokens",
+      );
+      assert.ok(
+        initialLayout.highlightedTokenColors.length >= 3,
+        `code theme collapsed to a single color: ${JSON.stringify(initialLayout.highlightedTokenColors)}`,
+      );
+      assert.deepEqual(
+        initialLayout.highlightedTokenMismatches,
+        [],
+        "highlighted tokens must consume the active Shiki theme variables",
+      );
       assert.equal(initialLayout.hasMathError, true);
       assert.equal(initialLayout.hasTableScroller, true);
       assert.equal(initialLayout.hasHorizontalDocumentOverflow, false);
@@ -1024,6 +1041,13 @@ async function main() {
         "window.__qaClipboardWrites?.some((text) => text.includes('visibleCodeBlock') && text.includes('code block remains readable')) === true",
         10_000,
       );
+      await evaluate(cdp, () => {
+        const highlightedCodeBlock = Array.from(
+          document.querySelectorAll(".markdown-code-block"),
+        ).find((block) => block.textContent?.includes("visibleCodeBlock"));
+        highlightedCodeBlock?.scrollIntoView({ block: "center" });
+      });
+      await waitForAnimationFrames(cdp, 2);
 
       const screenshot = await cdp.send("Page.captureScreenshot", {
         format: "png",
@@ -1186,6 +1210,13 @@ async function collectLayout(cdp) {
     const markdownDocument = document.querySelector(".markdown-rendered-document");
     const readerDocument = document.querySelector(".reader-preview-document");
     const codeBlock = document.querySelector(".markdown-code-block");
+    const highlightedCodeBlock = Array.from(
+      document.querySelectorAll(".markdown-code-block"),
+    ).find((block) => block.querySelector('.line span[style*="--shiki-light"]'));
+    const highlightedTokens = Array.from(
+      highlightedCodeBlock?.querySelectorAll('.line span[style*="--shiki-light"]') ??
+        [],
+    );
     const inlineCode = Array.from(
       document.querySelectorAll(".markdown-rendered-document code:not(pre code)"),
     ).find((code) => code.textContent?.includes("client->connect"));
@@ -1258,6 +1289,25 @@ async function collectLayout(cdp) {
         (rect) => rect.width > 0 && rect.height > 0,
       ).length;
     })();
+    const activeTokenVariable =
+      highlightedCodeBlock?.getAttribute("data-code-theme") === "Eva Dark Bold"
+        ? "--shiki-dark"
+        : "--shiki-light";
+    const colorProbe = document.createElement("span");
+    document.body.append(colorProbe);
+    const highlightedTokenStyles = highlightedTokens.map((token) => {
+      const style = getComputedStyle(token);
+      const variableColor = style.getPropertyValue(activeTokenVariable).trim();
+
+      colorProbe.style.color = "";
+      colorProbe.style.color = variableColor;
+
+      return {
+        color: style.color,
+        variableColor: getComputedStyle(colorProbe).color,
+      };
+    });
+    colorProbe.remove();
 
     function fitsViewport(element) {
       const rect = element.getBoundingClientRect();
@@ -1322,6 +1372,14 @@ async function collectLayout(cdp) {
       hasReadingCard: Boolean(reading),
       readingCardShadow: readingStyle?.boxShadow ?? "",
       hasCodeBlock: Boolean(document.querySelector(".markdown-code-block")),
+      codeThemeName: highlightedCodeBlock?.getAttribute("data-code-theme") ?? "",
+      highlightedTokenCount: highlightedTokenStyles.length,
+      highlightedTokenColors: Array.from(
+        new Set(highlightedTokenStyles.map(({ color }) => color)),
+      ),
+      highlightedTokenMismatches: highlightedTokenStyles.filter(
+        ({ color, variableColor }) => color !== variableColor,
+      ),
       indentedCodeHasReaderClass: Boolean(indentedCodeBlock),
       indentedCodeCopyButtonExists: Boolean(indentedCodeCopyButton),
       indentedCodeFontFamily: indentedCodeBlock

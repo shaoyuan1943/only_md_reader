@@ -434,6 +434,15 @@
   - 构建验证：`pnpm lint`、`pnpm format:check`、`pnpm build`、`git diff --check` 和 `pnpm tauri build --no-bundle --ci` 均通过；构建仍只有本清单 13.8 已记录的 Shiki 动态大 chunk 非阻塞警告，未生成安装包。新测试 EXE 为 `E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，大小 `45,327,360` bytes，LastWriteTime `2026-07-23 11:52:45.576 +08:00`，SHA-256 为 `1C2BAFD916BD64B63FD782710F0B7857187127B80C8D3EC5397AE3390177D4C9`。
   - 未验证：尝试使用 Windows 桌面辅助工具截取新 EXE 的实机字形时，工具误绑定到 Codex 窗口；已在任何点击或输入前停止，因此不把该结果计入阅读器实机目视验证。当前完成状态以真实 Chromium 计算样式、固定 UI/PDF QA 和新 EXE 构建为依据。
 
+- [x] 13.10 修复屏幕态代码主题退化为单色并建立跨功能回归规则。完成时间：2026-07-24
+  - 根因：PDF 导出改造将 Shiki 输出切换为同时携带 `--shiki-light` / `--shiki-dark` 的双主题 token，但屏幕 CSS 只在代码块容器上选择主题变量，没有让内部 token span 消费对应变量；因此主题名和变量仍存在，浏览器计算样式却全部继承同一个容器文字色。
+  - 实现：`src/App.css` 按 `data-code-theme` 让 token span 使用当前 Eva 主题的颜色、字重、斜体和文本装饰变量；不修改 Markdown 管线、本地主题 JSON 或 PDF 黑白打印规则。
+  - 红绿测试：先扩展 `pnpm qa:reader-ui`，在旧实现上稳定失败并报告 `code theme collapsed to a single color: ["rgb(93, 93, 95)"]`；最小 CSS 修复后，明亮模式确认 `Eva Light Bold`、暗色模式确认 `Eva Dark Bold`，两种模式均实测 23 个 token、8 种计算颜色且主题变量错配数量为 0。QA 截图前会把高亮代码块滚动到可视区域，人工复核 `reader-ui-desktop-1920-light.png` 与 `reader-ui-desktop-1920-dark.png` 均恢复多色语法高亮。
+  - 项目规则：`AGENTS.md` 新增“8.2 修改后跨功能回归验证”；以后每次代码、样式、配置或 QA 修改都必须同时验证直接功能、已有功能和无关功能，执行完整前端基线与全部固定 QA。代码主题是 `pnpm qa:reader-ui` 的永久浏览器计算样式回归项，不能只检查主题名、CSS 变量或代码块存在。
+  - 完整回归：`pnpm test`（194/194）、`pnpm lint`、`pnpm format:check`、`pnpm build`、`cargo test --manifest-path src-tauri\Cargo.toml`（30/30）、`cargo clippy --manifest-path src-tauri\Cargo.toml --all-targets --all-features -- -D warnings`、`pnpm qa:settings-ui`、`pnpm qa:reader-ui`、`pnpm qa:markdown-performance`、`pnpm qa:pdf-export`、`pnpm qa:screenshots` 和 `git diff --check` 均通过。最终一轮 1 MiB / 5 MiB / 10 MiB Markdown 性能样本分别为 548ms / 2746ms / 7980ms，均低于门槛；构建仍只有本清单 13.8 已记录的 Shiki 动态大 chunk 非阻塞警告。
+  - 测试构建：`pnpm tauri build --no-bundle --ci` 通过，未生成 MSI/NSIS 安装包。新测试 EXE 为 `E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，大小 `45,327,872` bytes，LastWriteTime `2026-07-24 23:53:11.168 +08:00`，SHA-256 为 `DDF6F247E89D4AA017D2D12EFB5073AF0573B8135D48E181F94D4ED3C88C74BA`。
+  - 未验证：本轮当前平台为 Windows；未在 macOS 实机验证。
+
 ## 14. 自动化测试与视觉验证
 
 - [x] 14.1 建立单元测试。完成时间：2026-07-02 10:04

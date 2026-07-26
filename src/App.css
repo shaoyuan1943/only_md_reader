@@ -913,8 +913,22 @@ body,
   color: var(--shiki-light, var(--text-primary));
 }
 
+.markdown-code-block[data-code-theme="Eva Light Bold"] span {
+  color: var(--shiki-light, inherit);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+
 .markdown-code-block[data-code-theme="Eva Dark Bold"] {
   color: var(--shiki-dark, var(--text-primary));
+}
+
+.markdown-code-block[data-code-theme="Eva Dark Bold"] span {
+  color: var(--shiki-dark, inherit);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
 }
 
 .markdown-table-wrapper {
