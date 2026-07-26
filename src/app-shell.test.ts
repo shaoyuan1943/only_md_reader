@@ -716,6 +716,31 @@ void test("Windows MSI exposes Markdown default-app registration and system sett
   assert.doesNotMatch(wixMarkdownDefaultApp, /UserChoice/);
 });
 
+void test("Windows MSI removes older MSI versions before installing to the English default directory", () => {
+  const majorUpgradeTags = wixTemplate.match(/<MajorUpgrade\b[^>]*\/>/g);
+  const installDirDirectory = wixTemplate.match(
+    /<Directory\b(?=[^>]*\bId="INSTALLDIR")[^>]*\/>/,
+  );
+  const installDirPropertyBlocks = wixTemplate.match(
+    /<Property\b(?=[^>]*\bId="INSTALLDIR")[^>]*>[\s\S]*?<\/Property>/g,
+  );
+
+  assert.equal(tauriConfig.productName, "MD极简阅读");
+  assert.deepEqual(tauriConfig.bundle?.targets, ["msi"]);
+  assert.equal(majorUpgradeTags?.length, 2);
+  for (const majorUpgradeTag of majorUpgradeTags ?? []) {
+    assert.match(majorUpgradeTag, /Schedule="afterInstallInitialize"/);
+  }
+  assert.ok(installDirDirectory);
+  assert.match(installDirDirectory[0], /(?:^|\s)Name="iMDReader"(?=\s|\/?>)/);
+  assert.doesNotMatch(wixTemplate, /PrevInstallDirNoName/);
+  assert.doesNotMatch(wixTemplate, /PrevInstallDirWithName/);
+  assert.equal(installDirPropertyBlocks, null);
+  assert.match(wixTemplate, /<Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"\s*\/>/);
+  assert.match(wixTemplate, /<UIRef Id="WixUI_InstallDir"\s*\/>/);
+  assert.match(wixTemplate, /ConfigurableDirectory="INSTALLDIR"/);
+});
+
 void test("reader command hides the source open-file window before the slow open path and restores it on failure", () => {
   const readerWindowsRs = readFileSync(
     new URL("../src-tauri/src/reader_windows.rs", import.meta.url),
