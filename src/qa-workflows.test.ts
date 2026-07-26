@@ -96,3 +96,15 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
   assert.match(releaseWorkflow, /NSIS artifacts were produced/);
   assert.match(releaseWorkflow, /gh release create/);
 });
+
+void test("Windows MSI QA is a stable release entrypoint", () => {
+  assert.match(
+    packageJson,
+    /"qa:windows-msi":\s*"powershell -NoProfile -ExecutionPolicy Bypass -File tools\/windows-msi-qa\.ps1"/,
+  );
+  assert.equal(
+    existsSync(new URL("../tools/windows-msi-qa.ps1", import.meta.url)),
+    true,
+  );
+  assert.match(releaseWorkflow, /pnpm qa:windows-msi/);
+});

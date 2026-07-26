@@ -18,6 +18,7 @@
     "qa:reader-ui": "node tools/reader-ui-qa.mjs",
     "qa:markdown-performance": "node --experimental-strip-types tools/markdown-performance-check.mjs",
     "qa:screenshots": "node tools/playwright-screenshots.mjs",
+    "qa:windows-msi": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/windows-msi-qa.ps1",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
