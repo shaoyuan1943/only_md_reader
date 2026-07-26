@@ -91,6 +91,13 @@ void test("manual and packaging acceptance checklists are available for release 
 });
 
 void test("GitHub workflows verify the project and publish Windows MSI releases", () => {
+  const validateReleaseTagStep = releaseWorkflow.match(
+    / {6}- name: Validate release tag[\s\S]*?(?=\n {6}- name:)/,
+  )?.[0];
+  const validateReleaseTagRunBlock = validateReleaseTagStep?.match(
+    / {8}run: \|\n(?<script>[\s\S]*)/,
+  )?.groups?.script;
+
   assert.match(ciWorkflow, /branches:\s*\[main\]/);
   assert.match(ciWorkflow, /pnpm format:check/);
   assert.match(ciWorkflow, /pnpm test/);
@@ -101,6 +108,27 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
   assert.match(releaseWorkflow, /tags:\s*\n\s*- "v\*"/);
   assert.match(releaseWorkflow, /description:\s*"Release tag, for example v0\.1\.8"/);
   assert.match(releaseWorkflow, /default:\s*"v0\.1\.8"/);
+  assert.ok(validateReleaseTagStep);
+  assert.match(
+    validateReleaseTagStep,
+    /env:\s*\n\s+WORKFLOW_EVENT_NAME:\s*\$\{\{\s*github\.event_name\s*\}\}/,
+  );
+  assert.match(
+    validateReleaseTagStep,
+    /REQUESTED_TAG_NAME:\s*\$\{\{\s*inputs\.tag_name\s*\}\}/,
+  );
+  assert.match(
+    validateReleaseTagStep,
+    /GIT_REF_NAME:\s*\$\{\{\s*github\.ref_name\s*\}\}/,
+  );
+  assert.ok(validateReleaseTagRunBlock);
+  assert.doesNotMatch(
+    validateReleaseTagRunBlock,
+    /\$\{\{\s*(?:inputs\.tag_name|github\.ref_name|github\.event_name)\s*\}\}/,
+  );
+  assert.match(validateReleaseTagRunBlock, /\$env:WORKFLOW_EVENT_NAME/);
+  assert.match(validateReleaseTagRunBlock, /\$env:REQUESTED_TAG_NAME/);
+  assert.match(validateReleaseTagRunBlock, /\$env:GIT_REF_NAME/);
   assert.match(
     releaseWorkflow,
     /Get-Content -Raw package\.json\s*\|\s*ConvertFrom-Json/,
@@ -112,7 +140,8 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
   assert.match(releaseWorkflow, /Package version .* does not match Tauri version/);
   assert.match(releaseWorkflow, /\$expectedTag\s*=\s*"v\$packageVersion"/);
   assert.match(releaseWorkflow, /\$tag\s+-cne\s+\$expectedTag/);
-  assert.match(releaseWorkflow, /Release tag must be v0\.1\.8/);
+  assert.match(releaseWorkflow, /Release tag must be '\$expectedTag'/);
+  assert.doesNotMatch(validateReleaseTagRunBlock, /v0\.1\.8/);
   assert.match(releaseWorkflow, /pnpm tauri build --bundles msi/);
   assert.match(releaseWorkflow, /NSIS artifacts were produced/);
   assert.match(releaseWorkflow, /gh release create/);

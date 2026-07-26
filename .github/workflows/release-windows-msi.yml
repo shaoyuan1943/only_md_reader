@@ -23,9 +23,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve release tag
+      - name: Validate release tag
         id: release
         shell: pwsh
+        env:
+          WORKFLOW_EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_TAG_NAME: ${{ inputs.tag_name }}
+          GIT_REF_NAME: ${{ github.ref_name }}
         run: |
           $packageVersion = (Get-Content -Raw package.json | ConvertFrom-Json).version
           $tauriVersion = (Get-Content -Raw src-tauri\tauri.conf.json | ConvertFrom-Json).version
@@ -33,13 +37,13 @@ jobs:
             throw "Package version '$packageVersion' does not match Tauri version '$tauriVersion'."
           }
           $expectedTag = "v$packageVersion"
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $tag = "${{ inputs.tag_name }}"
+          if ($env:WORKFLOW_EVENT_NAME -eq "workflow_dispatch") {
+            $tag = $env:REQUESTED_TAG_NAME
           } else {
-            $tag = "${{ github.ref_name }}"
+            $tag = $env:GIT_REF_NAME
           }
           if ($tag -cne $expectedTag) {
-            throw "Release tag must be v0.1.8 for this release (expected '$expectedTag'); got '$tag'."
+            throw "Release tag must be '$expectedTag'; got '$tag'."
           }
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
