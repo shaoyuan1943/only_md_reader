@@ -196,3 +196,22 @@ void test("Windows MSI QA verifies the generated Upgrade table blocks downgrades
     /\$previous = Read-MsiContract \(Resolve-Path -LiteralPath \$PreviousMsiPath\)\.Path\r?\n/,
   );
 });
+
+void test("Windows MSI QA verifies strict older-version UI routing", () => {
+  assert.match(windowsMsiQa, /OLDER_VERSION_DETECTED/);
+  assert.match(windowsMsiQa, /UpgradeReadyDlg/);
+  assert.match(
+    windowsMsiQa,
+    /SELECT ``Dialog`` FROM ``Dialog`` WHERE ``Dialog`` = 'UpgradeReadyDlg'/,
+  );
+  assert.match(
+    windowsMsiQa,
+    /SELECT ``Dialog_``,``Control``,``Type``,``Text`` FROM ``Control``/,
+  );
+  assert.match(
+    windowsMsiQa,
+    /SELECT ``Dialog_``,``Control_``,``Event``,``Argument``,``Condition``,``Ordering`` FROM ``ControlEvent``/,
+  );
+  assert.match(windowsMsiQa, /VersionMaxInclusive/);
+  assert.match(windowsMsiQa, /UpgradePrompt/);
+});
