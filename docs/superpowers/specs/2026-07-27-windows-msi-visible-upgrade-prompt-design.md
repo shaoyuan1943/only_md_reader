@@ -124,7 +124,7 @@ FindRelatedProducts
 - 包含 `OnlyDetect`。
 - `Dialog`、`Control` 和 `ControlEvent` 表存在 `UpgradeReadyDlg` 及其控件和导航。
 - 从安装目录页到升级页的条件为 `OLDER_VERSION_DETECTED`。
-- 全新安装路径的条件明确排除 `OLDER_VERSION_DETECTED`。
+- 升级页导航顺序必须高于标准 `VerifyReadyDlg` 导航：没有 `OLDER_VERSION_DETECTED` 时只进入标准页面，属性存在时由后执行的升级导航替换标准页面。
 - 点击“升级”进入标准安装执行序列。
 - 原有 UpgradeCode、ProductCode、RemoveExistingProducts、降级拦截、`iMDReader` 和无 NSIS 检查继续通过。
 
