@@ -5,9 +5,11 @@
 ## Windows MSI 安装
 
 - 运行 `pnpm tauri build --bundles msi`，确认只生成 MSI，不生成当前版本 NSIS。
-- 运行 `pnpm qa:windows-msi`，确认版本、UpgradeCode、`iMDReader` 目录和升级动作顺序。
-- 无旧版本时，确认默认安装到 `C:\Program Files\iMDReader`，并确认安装向导允许本次修改路径。
-- 安装已知旧 MSI 后再运行新 MSI，确认旧 ProductCode 已移除、新 ProductCode 已安装。
+- 运行 `pnpm qa:windows-msi`，确认版本、UpgradeCode、`iMDReader` 目录、升级动作顺序，以及最终 MSI 的 `Upgrade`、`Dialog`、`Control`、`ControlEvent` 表。
+- 无同 `UpgradeCode` 的已安装 MSI 时，确认显示普通安装确认页，默认安装到 `C:\Program Files\iMDReader`，并允许本次修改路径。
+- 安装同 `UpgradeCode` 且严格低于当前版本的 MSI 后再运行新 MSI，确认显示“检测到已安装的旧版本”和“升级”按钮；点击升级后确认旧 ProductCode 已移除、新 ProductCode 已安装。
+- 同版本重装时，确认不显示旧版本提示。
+- 已安装高版本时，确认高版本降级被阻止，且不显示旧版本升级确认页。
 - 确认升级不继承旧中文目录或旧自定义目录。
 - 卸载后确认安装文件被清理，但用户数据目录不被误删。
 

@@ -783,10 +783,7 @@ void test("Windows MSI shows an upgrade page only for versions below the current
     upgradeDialog.groups.body,
     /继续后将先卸载旧版本，再安装 \[ProductName\] \[ProductVersion\]/,
   );
-  assert.match(
-    upgradeDialog.groups.body,
-    /应用设置、最近文件和阅读位置不会被删除/,
-  );
+  assert.match(upgradeDialog.groups.body, /应用设置、最近文件和阅读位置不会被删除/);
   assert.match(upgradeDialog.groups.body, /\bId="Upgrade"/);
   assert.match(upgradeDialog.groups.body, /\bText="升级"/);
   assert.match(upgradeDialog.groups.body, /\bId="Back"/);

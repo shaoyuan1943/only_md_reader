@@ -605,6 +605,9 @@ text/markdown
 
 - Windows 只发布 MSI，不生成或发布 NSIS 安装包。
 - MSI 使用稳定 `UpgradeCode` 和 WiX `MajorUpgrade`；`RemoveExistingProducts` 调度在 `afterInstallInitialize`，使旧 MSI 在新文件写入前卸载。
+- `OLDER_VERSION_DETECTED` 使用上限不包含当前 `ProductVersion` 的版本范围，只控制“检测到已安装的旧版本”确认页；因此所有严格低于当前包版本的同 `UpgradeCode` MSI 都显示升级提示，同版本重装不显示。
+- `WIX_UPGRADE_DETECTED` 由 `MajorUpgrade` 负责发现并移除可升级的旧 MSI；它和只控制界面的 `OLDER_VERSION_DETECTED` 分工不同。
+- `WIX_DOWNGRADE_DETECTED` 识别已安装的高版本，并由 `LaunchCondition` 阻止低版本覆盖；高版本场景不进入旧版本升级确认页。
 - `INSTALLDIR` 默认是 `C:\Program Files\iMDReader`。
 - 从旧版本升级时不继承旧中文目录或旧自定义目录，仍默认使用 `C:\Program Files\iMDReader`。
 - `WixUI_InstallDir` 保留本次安装的目录选择能力，用户可以主动选择新的安装目录。

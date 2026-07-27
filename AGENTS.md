@@ -150,6 +150,7 @@ pnpm qa:screenshots
 - 最低回归基线为：`pnpm test`、`pnpm lint`、`pnpm format:check`、`pnpm build`，以及 8.1 中列出的全部固定 QA 命令。
 - 修改 Rust / Tauri 代码时，在上述基线之外追加 `cargo test --manifest-path src-tauri\Cargo.toml` 和 `cargo clippy --manifest-path src-tauri\Cargo.toml --all-targets --all-features -- -D warnings`。
 - 代码主题属于永久回归项：`pnpm qa:reader-ui` 必须在明亮和暗色模式下验证 `Eva Light Bold` / `Eva Dark Bold` 已实际应用到 Shiki token 的浏览器计算样式，并确认同一高亮代码块存在多种 token 颜色；只检查主题名、CSS 变量或代码块存在不算通过。
+- Windows MSI 升级提示属于永久回归项：最终 MSI 必须用版本范围识别所有严格低于当前包版本的同 `UpgradeCode` MSI；同版本重装不得显示旧版本提示，高版本必须走降级拦截。`pnpm qa:windows-msi` 必须验证最终 MSI 的 `Upgrade`、`Dialog`、`Control` 和 `ControlEvent` 表；可见界面验收未执行时必须列为“未验证”。
 - 只要某项验证未执行、无法执行或失败，汇报中必须列入“未验证”或“已知限制”，不能把局部验证结果表述为整体完成。
 
 汇报时必须区分：
