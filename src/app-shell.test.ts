@@ -756,6 +756,51 @@ void test("Windows MSI removes older MSI versions before installing to the Engli
   assert.match(wixTemplate, /ConfigurableDirectory="INSTALLDIR"/);
 });
 
+void test("Windows MSI shows an upgrade page only for versions below the current package", () => {
+  const olderVersionDetection = wixTemplate.match(
+    /<Upgrade\b(?=[^>]*\bId="\{\{upgrade_code\}\}")[^>]*>\s*<UpgradeVersion\b(?<attributes>[^>]*)\/>\s*<\/Upgrade>/,
+  );
+  const upgradeDialog = wixTemplate.match(
+    /<Dialog\b(?=[^>]*\bId="UpgradeReadyDlg")[^>]*>(?<body>[\s\S]*?)<\/Dialog>/,
+  );
+  const upgradeRoute = wixTemplate.match(
+    /<Publish\b(?=[^>]*\bDialog="InstallDirDlg")(?=[^>]*\bControl="Next")(?=[^>]*\bEvent="NewDialog")(?=[^>]*\bValue="UpgradeReadyDlg")[^>]*>(?<condition>[\s\S]*?)<\/Publish>/,
+  );
+
+  assert.ok(olderVersionDetection?.groups);
+  assert.match(olderVersionDetection.groups.attributes, /\bMaximum="\{\{version\}\}"/);
+  assert.match(olderVersionDetection.groups.attributes, /\bIncludeMaximum="no"/);
+  assert.match(olderVersionDetection.groups.attributes, /\bOnlyDetect="yes"/);
+  assert.match(
+    olderVersionDetection.groups.attributes,
+    /\bProperty="OLDER_VERSION_DETECTED"/,
+  );
+  assert.doesNotMatch(olderVersionDetection.groups.attributes, /\bMinimum=/);
+
+  assert.ok(upgradeDialog?.groups);
+  assert.match(upgradeDialog.groups.body, /检测到已安装的旧版本/);
+  assert.match(
+    upgradeDialog.groups.body,
+    /继续后将先卸载旧版本，再安装 \[ProductName\] \[ProductVersion\]/,
+  );
+  assert.match(
+    upgradeDialog.groups.body,
+    /应用设置、最近文件和阅读位置不会被删除/,
+  );
+  assert.match(upgradeDialog.groups.body, /\bId="Upgrade"/);
+  assert.match(upgradeDialog.groups.body, /\bText="升级"/);
+  assert.match(upgradeDialog.groups.body, /\bId="Back"/);
+  assert.match(upgradeDialog.groups.body, /\bId="Cancel"/);
+
+  assert.ok(upgradeRoute?.groups);
+  assert.match(upgradeRoute.groups.condition, /\bOLDER_VERSION_DETECTED\b/);
+  assert.match(
+    upgradeRoute.groups.condition,
+    /WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"/,
+  );
+  assert.doesNotMatch(wixTemplate, /msiexec(?:\.exe)?\s+\/x/i);
+});
+
 void test("reader command hides the source open-file window before the slow open path and restores it on failure", () => {
   const readerWindowsRs = readFileSync(
     new URL("../src-tauri/src/reader_windows.rs", import.meta.url),
