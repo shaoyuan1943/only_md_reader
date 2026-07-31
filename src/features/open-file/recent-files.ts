@@ -31,7 +31,7 @@ export function sortRecentFiles(files: readonly RecentFile[]): RecentFile[] {
 export function createRecentFileViewModels(
   files: readonly RecentFile[],
 ): RecentFileViewModel[] {
-  return sortRecentFiles(files)
+  return sortRecentFiles(files.filter((file) => file.exists))
     .slice(0, VISIBLE_RECENT_FILE_LIMIT)
     .map((file) => ({
       id: file.path,

@@ -712,3 +712,18 @@
 - 实时多人协作。
 - 插件系统。
 - 第一版内实现 CriticMarkup 批注。
+
+## 19. Markdown 文件外部变化同步
+
+- [x] 19.1 原生文件监听、阅读状态恢复与路径重绑。完成时间：2026-07-31
+  - 实现：新增 Rust `notify` 目录监听管理器；同一目录复用底层 watcher，按 Markdown 路径向订阅阅读窗口定向发送 `reader:file-changed`。事件采用 `250ms` 防抖；删除或重命名后等待 `750ms` 再确认原路径是否恢复。窗口销毁时取消订阅，最后一个订阅移除时释放目录 watcher。
+  - 阅读窗口 registry 新增反向路径映射；前端只能读取当前窗口登记的文件。重新定位目标未打开时复用原 WebView、更新标题/注册表/订阅；目标已打开时聚焦目标窗口并关闭当前窗口，避免重复阅读窗口。
+  - 前端只替换当前阅读窗口的 Markdown 状态，不 reload WebView；缺失或不可读时保留最后一次成功内容。路径下方新增持续状态条：缺失提供“重新定位文件”“重试”，普通不可读提供“重试”“关闭”；若删除/移动后的首次“重试”仍失败，则保留失败提示但移除两个操作，恢复成功后直接移除状态条。热更新滚动恢复顺序固定为标题锚点、原像素位置、顶部。
+  - 自动验证：`pnpm test`、`pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm qa:settings-ui`、`pnpm qa:reader-ui`、`pnpm qa:markdown-performance`、`pnpm qa:pdf-export`、`pnpm qa:screenshots`、`cargo test --manifest-path src-tauri\Cargo.toml`（36/36）与 `cargo clippy --manifest-path src-tauri\Cargo.toml --all-targets --all-features -- -D warnings` 均通过。`pnpm tauri build --no-bundle --ci` 通过；仅出现工作清单 13.8 已记录的 Vite 大 chunk 非阻断警告，未生成 MSI/NSIS。
+  - 缺陷修正（2026-07-31）：真实 VS Code 保存会连续产生多个文件事件；原实现错误地将防抖写成首个事件立即处理、后续 250ms 内丢弃的节流，可能丢掉最终写入事件而保留旧内容。现改为尾随 `250ms` 防抖：同一路径的后续事件替换前一待处理事件，只有最后一个事件触发读取；删除/重命名仍在此后额外等待 `750ms` 进行存在性确认。新增 Rust 回归测试覆盖该替换规则。
+  - 缺陷修正（2026-07-31）：监听匹配键在 Windows 下必须小写，但原实现错误地把这个小写键作为事件路径发给前端；规范化的阅读文件路径保留盘符大小写，前端严格比较后丢弃事件。现仅用小写路径作内部订阅键，事件继续发送原始规范化路径；新增 Rust 回归测试锁定该约束。
+  - 交互修正（2026-07-31）：删除/移动后的首次“重试”仍无法读取时，保留失败说明，但不再显示“重试”和“关闭”，避免对不存在的文件提供重复或无效操作；普通不可读仍保留“重试”“关闭”。新增 `a failed retry after deletion offers no further actions` 回归测试。
+  - 交互修正（2026-07-31）：缺失和不可读的状态条文案前增加 `❗`；文件恢复并完成重新读取后直接移除状态条，不再显示短暂的“文件已恢复”提示。打开文件窗口会过滤不存在的最近文件，不再显示“文件不存在”卡片。
+  - 发布准备（2026-07-31）：应用版本同步为 `0.1.9`；完整前端/Rust/固定 UI QA 及 MSI-only 构建均通过。`pnpm qa:windows-msi` 确认 MSI `ProductVersion=0.1.9`，严格旧版本检测与降级检测边界均为 `0.1.9`，且无当前版本 NSIS 产物。
+  - 测试 EXE：`E:\only_md_reader\src-tauri\target\release\only-md-reader.exe`，45,598,208 bytes，SHA-256 `B30FFC42ABBB45D0E173DE6E28C911BEE53605261AD124EA0FB358FD3F168EB8`。发布 MSI：`E:\only_md_reader\src-tauri\target\release\bundle\msi\MD极简阅读_0.1.9_x64_zh-CN.msi`，38,465,536 bytes，SHA-256 `55EBB746708D67863CFAD3BDD1DCE914171B51C5C2F0099DC81983B1FA03D190`。
+  - 用户验收：用户已在目标 Markdown 文件上完成实时同步、删除后重试和恢复显示的人工复验。未新增独立 `pnpm qa:reader-file-watch` 浏览器脚本，因为文件系统事件属于 Tauri 原生侧，已由 Rust 的真实 watcher 回归测试覆盖。

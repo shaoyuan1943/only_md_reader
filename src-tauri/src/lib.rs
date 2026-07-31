@@ -1,4 +1,5 @@
 mod font_families;
+pub mod markdown_file_watch;
 mod pdf_export;
 mod reader_windows;
 mod recent_files;
@@ -14,6 +15,7 @@ use startup_window::create_main_window;
 pub fn run() {
     tauri::Builder::default()
         .manage(ReaderWindowRegistry::default())
+        .manage(markdown_file_watch::FileWatchManager::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(reader_windows::handle_window_event)
@@ -32,6 +34,8 @@ pub fn run() {
             recent_files::list_recent_files,
             recent_files::open_markdown_file,
             reader_windows::open_reader_window,
+            reader_windows::read_current_reader_file,
+            reader_windows::rebind_current_reader_file,
             settings::get_reader_settings,
             settings::reset_reader_settings,
             settings::update_reader_settings,

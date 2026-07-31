@@ -11,6 +11,7 @@ use tauri::{
     utils::config::WebviewUrl, AppHandle, Manager, WebviewWindowBuilder, Window, WindowEvent,
 };
 
+use crate::markdown_file_watch::FileWatchManager;
 use crate::recent_files::{
     is_supported_markdown_path, recent_files_store_path, upsert_recent_file_in_path,
 };
@@ -24,7 +25,13 @@ const READER_WINDOW_MIN_HEIGHT: f64 = 560.0;
 
 #[derive(Debug, Default)]
 pub struct ReaderWindowRegistry {
-    file_path_to_window_label: Mutex<HashMap<String, String>>,
+    paths: Mutex<ReaderWindowRegistryPaths>,
+}
+
+#[derive(Debug, Default)]
+struct ReaderWindowRegistryPaths {
+    file_path_to_window_label: HashMap<String, String>,
+    window_label_to_file_path: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -46,13 +53,20 @@ struct ReaderWindowBootstrap {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ReaderWindowFile {
+pub struct ReaderWindowFile {
     path: String,
     file_name: String,
     content: String,
     opened_at: u64,
     file_size: u64,
     modified_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum ReaderFileRebindResult {
+    Rebound { file: ReaderWindowFile },
+    ExistingWindow { window_label: String },
 }
 
 #[tauri::command]
@@ -155,6 +169,17 @@ pub fn open_reader_window_for_path(
 
     app.state::<ReaderWindowRegistry>()
         .register(normalized_path.clone(), window_label.clone());
+    if let Err(error) =
+        app.state::<FileWatchManager>()
+            .subscribe(app, &normalized_path, &window_label)
+    {
+        app.state::<ReaderWindowRegistry>()
+            .unregister_window_label(&window_label);
+        if let Some(window) = app.get_webview_window(&window_label) {
+            let _ = window.close();
+        }
+        return Err(error);
+    }
 
     Ok(OpenedReaderWindow {
         path: normalized_path,
@@ -209,7 +234,60 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
             .app_handle()
             .state::<ReaderWindowRegistry>()
             .unregister_window_label(window.label());
+        window
+            .app_handle()
+            .state::<FileWatchManager>()
+            .unsubscribe_window(window.label());
     }
+}
+
+#[tauri::command]
+pub fn read_current_reader_file(
+    app: AppHandle,
+    window: Window,
+) -> Result<ReaderWindowFile, String> {
+    let path = app
+        .state::<ReaderWindowRegistry>()
+        .path_for_window_label(window.label())
+        .ok_or_else(|| "当前窗口未绑定 Markdown 文件。".to_string())?;
+
+    read_markdown_file(path)
+}
+
+#[tauri::command]
+pub fn rebind_current_reader_file(
+    app: AppHandle,
+    window: Window,
+    path: String,
+) -> Result<ReaderFileRebindResult, String> {
+    let normalized_path = normalize_markdown_path(&path)?;
+    let registry = app.state::<ReaderWindowRegistry>();
+
+    if let Some(existing_label) = registry.window_label_for_path(&normalized_path) {
+        if existing_label != window.label() {
+            if app.get_webview_window(&existing_label).is_some() {
+                focus_existing_reader_window(&app, existing_label.clone())?;
+                return Ok(ReaderFileRebindResult::ExistingWindow {
+                    window_label: existing_label,
+                });
+            }
+            registry.unregister_window_label(&existing_label);
+        }
+    }
+
+    let file = read_markdown_file(&normalized_path)?;
+    allow_markdown_asset_directory(&app, &normalized_path)?;
+    let file_name = file.file_name.clone();
+    app.state::<FileWatchManager>()
+        .unsubscribe_window(window.label());
+    registry.rebind(window.label(), normalized_path.clone())?;
+    app.state::<FileWatchManager>()
+        .subscribe(&app, &normalized_path, window.label())?;
+    window
+        .set_title(&format!("{file_name} - MD极简阅读"))
+        .map_err(|error| format!("更新阅读窗口标题失败：{error}"))?;
+
+    Ok(ReaderFileRebindResult::Rebound { file })
 }
 
 pub fn open_startup_markdown_arg(app: &AppHandle) -> Result<bool, String> {
@@ -257,24 +335,77 @@ where
 
 impl ReaderWindowRegistry {
     fn register(&self, normalized_path: String, window_label: String) {
-        self.file_path_to_window_label
+        let mut paths = self
+            .paths
             .lock()
-            .expect("reader window registry lock poisoned")
+            .expect("reader window registry lock poisoned");
+        paths
+            .file_path_to_window_label
+            .retain(|_, label| label != &window_label);
+        paths
+            .window_label_to_file_path
+            .insert(window_label.clone(), normalized_path.clone());
+        paths
+            .file_path_to_window_label
             .insert(registry_key_for_path(&normalized_path), window_label);
     }
 
     fn window_label_for_path(&self, normalized_path: &str) -> Option<String> {
-        self.file_path_to_window_label
+        self.paths
             .lock()
             .expect("reader window registry lock poisoned")
+            .file_path_to_window_label
             .get(&registry_key_for_path(normalized_path))
             .cloned()
     }
 
-    fn unregister_window_label(&self, window_label: &str) {
-        self.file_path_to_window_label
+    fn path_for_window_label(&self, window_label: &str) -> Option<String> {
+        self.paths
             .lock()
             .expect("reader window registry lock poisoned")
+            .window_label_to_file_path
+            .get(window_label)
+            .cloned()
+    }
+
+    fn rebind(&self, window_label: &str, normalized_path: String) -> Result<(), String> {
+        let mut paths = self
+            .paths
+            .lock()
+            .expect("reader window registry lock poisoned");
+        let path_key = registry_key_for_path(&normalized_path);
+
+        if let Some(existing_label) = paths.file_path_to_window_label.get(&path_key) {
+            if existing_label != window_label {
+                return Err("目标 Markdown 文件已在另一个阅读窗口中打开。".to_string());
+            }
+        }
+
+        paths
+            .file_path_to_window_label
+            .retain(|_, label| label != window_label);
+        paths
+            .window_label_to_file_path
+            .insert(window_label.to_string(), normalized_path);
+        let path = paths
+            .window_label_to_file_path
+            .get(window_label)
+            .expect("rebound reader path must exist")
+            .clone();
+        paths
+            .file_path_to_window_label
+            .insert(registry_key_for_path(&path), window_label.to_string());
+        Ok(())
+    }
+
+    fn unregister_window_label(&self, window_label: &str) {
+        let mut paths = self
+            .paths
+            .lock()
+            .expect("reader window registry lock poisoned");
+        paths.window_label_to_file_path.remove(window_label);
+        paths
+            .file_path_to_window_label
             .retain(|_, label| label != window_label);
     }
 }
@@ -418,7 +549,7 @@ mod tests {
 
     use super::{
         first_supported_markdown_arg, format_read_markdown_error, normalize_markdown_path,
-        read_markdown_file, reader_window_label,
+        read_markdown_file, reader_window_label, ReaderWindowRegistry,
     };
 
     #[test]
@@ -434,6 +565,25 @@ mod tests {
         assert_eq!(
             normalized,
             markdown.canonicalize().unwrap().to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn rebind_replaces_old_path_but_keeps_the_same_window_label() {
+        let registry = ReaderWindowRegistry::default();
+        registry.register(r"C:\\notes\\old.md".to_string(), "reader-old".to_string());
+
+        registry
+            .rebind("reader-old", r"C:\\notes\\new.md".to_string())
+            .unwrap();
+
+        assert_eq!(
+            registry.window_label_for_path(r"C:\\notes\\new.md"),
+            Some("reader-old".to_string())
+        );
+        assert_eq!(
+            registry.path_for_window_label("reader-old"),
+            Some(r"C:\\notes\\new.md".to_string())
         );
     }
 

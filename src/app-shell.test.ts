@@ -1660,13 +1660,13 @@ void test("settings window displays the synchronized package version", () => {
     .split(/(?=^\[\[package\]\]\r?$)/m)
     .find((packageBlock) => /^name = "only-md-reader"$/m.test(packageBlock));
 
-  assert.equal(packageJson.version, "0.1.8");
+  assert.equal(packageJson.version, "0.1.9");
   assert.equal(tauriConfig.version, packageJson.version);
   assert.notEqual(tauriPackageStart, -1);
   assert.match(tauriPackageBlock, /^name = "only-md-reader"$/m);
-  assert.match(tauriPackageBlock, /^version = "0\.1\.8"$/m);
+  assert.match(tauriPackageBlock, /^version = "0\.1\.9"$/m);
   assert.ok(tauriLockPackageBlock);
-  assert.match(tauriLockPackageBlock, /^version = "0\.1\.8"$/m);
+  assert.match(tauriLockPackageBlock, /^version = "0\.1\.9"$/m);
   assert.ok(
     settingsWindowTsx.includes(
       `settings-version">MD极简阅读 · v${packageJson.version}<`,

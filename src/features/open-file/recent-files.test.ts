@@ -127,8 +127,8 @@ void test("recent file view model displays Windows extended-length paths as norm
   ]);
 });
 
-void test("missing recent files expose a clear missing status", () => {
-  const [item] = createRecentFileViewModels([
+void test("missing recent files are omitted from the open window", () => {
+  const items = createRecentFileViewModels([
     {
       path: "E:\\Documents\\notes\\missing.md",
       fileName: "missing.md",
@@ -137,6 +137,5 @@ void test("missing recent files expose a clear missing status", () => {
     },
   ]);
 
-  assert.equal(item?.statusLabel, "文件不存在");
-  assert.equal(item?.isMissing, true);
+  assert.deepEqual(items, []);
 });

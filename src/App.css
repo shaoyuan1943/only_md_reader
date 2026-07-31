@@ -685,6 +685,57 @@ body,
   margin-top: 0;
 }
 
+.reader-file-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -4px 0 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.reader-file-status-banner[data-tone="warning"] {
+  background: color-mix(in srgb, var(--button-danger-bg) 12%, var(--surface-bg));
+}
+
+.reader-file-status-banner[data-tone="success"] {
+  background: color-mix(in srgb, var(--button-primary-bg) 12%, var(--surface-bg));
+}
+
+.reader-file-status-banner p {
+  margin: 0;
+}
+
+.reader-file-status-banner-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.reader-file-status-banner-actions button {
+  border-radius: 8px;
+  padding: 5px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.reader-file-status-banner-primary {
+  border: 1px solid var(--button-primary-bg);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+}
+
+.reader-file-status-banner-secondary {
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+}
+
 .reader-preview-source-heading {
   margin-bottom: 12px;
   color: var(--heading2);

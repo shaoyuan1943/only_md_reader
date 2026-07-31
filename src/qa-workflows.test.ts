@@ -110,8 +110,8 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
 
   assert.match(releaseWorkflow, /Release Windows MSI/);
   assert.match(releaseWorkflow, /tags:\s*\n\s*- "v\*"/);
-  assert.match(releaseWorkflow, /description:\s*"Release tag, for example v0\.1\.8"/);
-  assert.match(releaseWorkflow, /default:\s*"v0\.1\.8"/);
+  assert.match(releaseWorkflow, /description:\s*"Release tag, for example v0\.1\.9"/);
+  assert.match(releaseWorkflow, /default:\s*"v0\.1\.9"/);
   assert.ok(validateReleaseTagStep);
   assert.match(
     validateReleaseTagStep,
@@ -145,7 +145,7 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
   assert.match(releaseWorkflow, /\$expectedTag\s*=\s*"v\$packageVersion"/);
   assert.match(releaseWorkflow, /\$tag\s+-cne\s+\$expectedTag/);
   assert.match(releaseWorkflow, /Release tag must be '\$expectedTag'/);
-  assert.doesNotMatch(validateReleaseTagRunBlock, /v0\.1\.8/);
+  assert.doesNotMatch(validateReleaseTagRunBlock, /v0\.1\.9/);
   assert.match(releaseWorkflow, /pnpm tauri build --bundles msi/);
   assert.match(releaseWorkflow, /NSIS artifacts were produced/);
   assert.match(releaseWorkflow, /gh release create/);

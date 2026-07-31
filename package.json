@@ -1,14 +1,14 @@
 {
   "name": "only-md-reader",
   "private": true,
-  "version": "0.1.8",
+  "version": "0.1.9",
   "packageManager": "pnpm@11.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "pnpm test:unit && pnpm typecheck",
-    "test:unit": "node --test --experimental-strip-types src/app-shell.test.ts src/qa-workflows.test.ts src/shared/theme/theme-schema.test.ts src/shared/theme/apply-theme.test.ts src/features/open-file/open-file-dialog.test.ts src/features/open-file/open-file-api.test.ts src/features/open-file/open-file-status.test.ts src/features/open-file/recent-files.test.ts src/features/markdown/markdown-renderer.test.ts src/features/export-pdf/export-readiness.test.ts src/features/export-pdf/export-pdf.test.ts src/features/export-pdf/pdf-export-api.test.ts src/features/export-pdf/pdf-local-fit.test.ts src/features/reader/reader-image-state.test.ts src/features/reader/reader-link-navigation.test.ts src/features/reader/reader-notifications.test.ts src/features/reader/reader-outline.test.ts src/features/reader/reader-preview.test.ts src/features/reader/scroll-chrome.test.ts src/features/reader/window-state.test.ts src/features/reader/window-state-api.test.ts src/features/settings/apply-reader-settings.test.ts src/features/settings/reader-settings.test.ts src/features/settings/settings-api.test.ts src/features/settings/settings-window.test.ts",
+    "test:unit": "node --test --experimental-strip-types src/app-shell.test.ts src/qa-workflows.test.ts src/shared/theme/theme-schema.test.ts src/shared/theme/apply-theme.test.ts src/features/open-file/open-file-dialog.test.ts src/features/open-file/open-file-api.test.ts src/features/open-file/open-file-status.test.ts src/features/open-file/recent-files.test.ts src/features/markdown/markdown-renderer.test.ts src/features/export-pdf/export-readiness.test.ts src/features/export-pdf/export-pdf.test.ts src/features/export-pdf/pdf-export-api.test.ts src/features/export-pdf/pdf-local-fit.test.ts src/features/reader/reader-file-status-banner.test.ts src/features/reader/reader-file-sync-api.test.ts src/features/reader/reader-file-sync.test.ts src/features/reader/reader-image-state.test.ts src/features/reader/reader-link-navigation.test.ts src/features/reader/reader-notifications.test.ts src/features/reader/reader-outline.test.ts src/features/reader/reader-preview.test.ts src/features/reader/scroll-chrome.test.ts src/features/reader/window-state.test.ts src/features/reader/window-state-api.test.ts src/features/settings/apply-reader-settings.test.ts src/features/settings/reader-settings.test.ts src/features/settings/settings-api.test.ts src/features/settings/settings-window.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"vite.config.ts\" --max-warnings=0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\" \"src-tauri/capabilities/**/*.json\" \"src-tauri/tauri.conf.json\" \"*.{json,ts,js,html}\"",

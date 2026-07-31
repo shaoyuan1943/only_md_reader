@@ -56,6 +56,13 @@ import {
   removeReaderNotification,
   type ReaderNotification,
 } from "./reader-notifications.ts";
+import { ReaderFileStatusBanner } from "./ReaderFileStatusBanner.tsx";
+import {
+  getLiveSyncScrollTarget,
+  type LiveSyncScrollSnapshot,
+} from "./reader-file-sync.ts";
+import type { ReaderFileSyncApi } from "./reader-file-sync-api.ts";
+import { useReaderFileSync } from "./use-reader-file-sync.ts";
 
 const OUTLINE_VIEWPORT_OFFSET = 56;
 const OUTLINE_ACTIVE_ITEM_MARGIN = 24;
@@ -70,6 +77,7 @@ const defaultPdfExportApi = createPdfExportApi();
 
 type ReaderPreviewWindowProps = {
   file: OpenedMarkdownFile;
+  fileSyncApi?: ReaderFileSyncApi;
   initialWindowState?: WindowState | null;
   onBackToOpenFile?(this: void): void;
   pdfExportApi?: PdfExportApi;
@@ -129,13 +137,15 @@ const MarkdownRenderedDocument = memo(function MarkdownRenderedDocument({
 });
 
 export function ReaderPreviewWindow({
-  file,
+  file: initialFile,
+  fileSyncApi,
   initialWindowState = null,
   onBackToOpenFile: handleBackToOpenFile,
   pdfExportApi = defaultPdfExportApi,
   settingsApi = createSettingsApi(),
   windowStateApi = createWindowStateApi(),
 }: ReaderPreviewWindowProps) {
+  const [file, setFile] = useState(initialFile);
   const preview = createReaderPreviewViewModel(file);
   const currentFileSize = file.fileSize ?? file.content.length;
   const currentFileModifiedAt = file.modifiedAt;
@@ -178,10 +188,31 @@ export function ReaderPreviewWindow({
   const restoreStateRef = useRef<WindowState | null>(initialWindowState);
   const hasRestoredScrollRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
+  const liveSyncScrollSnapshotRef = useRef<LiveSyncScrollSnapshot | null>(null);
   const renderedOutlineIds = useMemo(
     () => getRenderedOutlineIds(rendered.outlineItems),
     [rendered.outlineItems],
   );
+  const captureLiveSyncScrollSnapshot = useCallback(() => {
+    const scroller = readingScrollerRef.current;
+    if (!scroller) {
+      return;
+    }
+    const heading = activeOutlineId
+      ? scroller.querySelector<HTMLElement>(`#${CSS.escape(activeOutlineId)}`)
+      : null;
+    liveSyncScrollSnapshotRef.current = {
+      activeHeadingId: heading?.id ?? null,
+      activeHeadingOffset: heading ? scroller.scrollTop - heading.offsetTop : null,
+      scrollTop: scroller.scrollTop,
+    };
+  }, [activeOutlineId]);
+  const fileSync = useReaderFileSync({
+    api: fileSyncApi,
+    file,
+    onBeforeFileChange: captureLiveSyncScrollSnapshot,
+    onFileChange: setFile,
+  });
 
   useLayoutEffect(() => {
     if (!selectionCopyBubble) {
@@ -328,6 +359,35 @@ export function ReaderPreviewWindow({
     rendered.html,
     renderedOutlineIds,
   ]);
+
+  useLayoutEffect(() => {
+    const scroller = readingScrollerRef.current;
+    const snapshot = liveSyncScrollSnapshotRef.current;
+    if (!scroller || !snapshot || isRendering) {
+      return undefined;
+    }
+
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        const heading = snapshot.activeHeadingId
+          ? scroller.querySelector<HTMLElement>(
+              `#${CSS.escape(snapshot.activeHeadingId)}`,
+            )
+          : null;
+        const target = getLiveSyncScrollTarget(snapshot, {
+          headingOffsetTop: heading?.offsetTop ?? null,
+          newMaxScrollTop: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+        });
+        scroller.scrollTop = target.scrollTop;
+        setActiveOutlineId(getActiveOutlineIdForScroller(scroller, renderedOutlineIds));
+        liveSyncScrollSnapshotRef.current = null;
+      });
+
+      return () => window.cancelAnimationFrame(secondFrame);
+    });
+
+    return () => window.cancelAnimationFrame(firstFrame);
+  }, [isRendering, rendered.html, renderedOutlineIds]);
 
   useLayoutEffect(() => {
     if (isRendering) {
@@ -1124,6 +1184,14 @@ export function ReaderPreviewWindow({
                 {preview.pathLine}
               </p>
             </div>
+
+            <ReaderFileStatusBanner
+              retryFailedAfterMissing={fileSync.retryFailedAfterMissing}
+              status={fileSync.status}
+              onClose={() => void fileSync.close()}
+              onRelocate={() => void fileSync.relocate()}
+              onRetry={() => void fileSync.retry()}
+            />
 
             <section
               className="reader-preview-source-section markdown-render-surface"
