@@ -1924,6 +1924,10 @@ function getReaderTextSelectionSurface(
     return null;
   }
 
+  if (target.matches(".markdown-code-scroller")) {
+    return null;
+  }
+
   if (target.closest("button, input, textarea, select, .markdown-code-copy-button")) {
     return null;
   }

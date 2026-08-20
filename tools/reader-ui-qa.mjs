@@ -1030,6 +1030,48 @@ async function main() {
       assert.equal(selectionAfterWheel.selectedText, "");
       assert.equal(selectionAfterWheel.bubbleVisible, false);
 
+      await dragCodeBlockScrollbar(cdp, "intentionallyLongReaderQaLine");
+      const codeScrollbarDrag = await evaluate(cdp, () => {
+        const codeScroller = Array.from(
+          document.querySelectorAll(".markdown-code-scroller"),
+        ).find((scroller) =>
+          scroller.textContent?.includes("intentionallyLongReaderQaLine"),
+        );
+
+        return {
+          scrollLeft: codeScroller?.scrollLeft ?? 0,
+          selectedText: window.getSelection()?.toString().trim() ?? "",
+          bubbleVisible: Boolean(
+            document.querySelector(".reader-preview-selection-copy-button"),
+          ),
+        };
+      });
+      assert.ok(codeScrollbarDrag.scrollLeft > 0);
+      assert.equal(codeScrollbarDrag.selectedText, "");
+      assert.equal(codeScrollbarDrag.bubbleVisible, false);
+
+      await evaluate(cdp, () => {
+        const codeScroller = Array.from(
+          document.querySelectorAll(".markdown-code-scroller"),
+        ).find((scroller) =>
+          scroller.textContent?.includes("intentionallyLongReaderQaLine"),
+        );
+        codeScroller?.scrollTo({ left: 0 });
+      });
+      await dragSelectElementTextByText(
+        cdp,
+        ".markdown-code-block span",
+        "visibleCodeBlock",
+      );
+      await waitForExpression(
+        cdp,
+        "document.querySelector('.reader-preview-selection-copy-button')?.dataset.visible === 'true' && window.getSelection()?.toString().includes('visibleCodeBlock') === true",
+        10_000,
+      );
+      await evaluate(cdp, () => {
+        document.querySelector(".reader-preview-selection-copy-button")?.click();
+      });
+
       await evaluate(cdp, () => {
         const codeScroller = Array.from(
           document.querySelectorAll(".markdown-code-scroller"),
@@ -1903,6 +1945,65 @@ async function dragSelectElementTextByText(cdp, selector, text) {
     x: endX,
     y,
   });
+}
+
+async function dragCodeBlockScrollbar(cdp, text) {
+  const dragPoints = await evaluate(
+    cdp,
+    (targetText) => {
+      const scroller = Array.from(
+        document.querySelectorAll(".markdown-code-scroller"),
+      ).find((element) => element.textContent?.includes(targetText));
+
+      if (!(scroller instanceof HTMLElement)) {
+        throw new Error(`Missing code scroller containing ${targetText}`);
+      }
+
+      scroller.scrollIntoView({ block: "center", inline: "nearest" });
+      scroller.scrollLeft = 0;
+      window.getSelection()?.removeAllRanges();
+      const rect = scroller.getBoundingClientRect();
+      const scrollbarHeight = scroller.offsetHeight - scroller.clientHeight;
+      const thumbWidth =
+        (scroller.clientWidth * scroller.clientWidth) / scroller.scrollWidth;
+      const startX = rect.left + 18 + thumbWidth / 2;
+
+      return {
+        startX,
+        endX: Math.min(rect.right - 24, startX + 240),
+        y: rect.bottom - Math.max(2, scrollbarHeight / 2),
+      };
+    },
+    text,
+  );
+
+  await cdp.send("Input.dispatchMouseEvent", {
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+    type: "mousePressed",
+    x: dragPoints.startX,
+    y: dragPoints.y,
+  });
+  for (let index = 1; index <= 8; index += 1) {
+    await cdp.send("Input.dispatchMouseEvent", {
+      button: "left",
+      buttons: 1,
+      type: "mouseMoved",
+      x: dragPoints.startX + ((dragPoints.endX - dragPoints.startX) * index) / 8,
+      y: dragPoints.y,
+    });
+    await delay(25);
+  }
+  await cdp.send("Input.dispatchMouseEvent", {
+    button: "left",
+    buttons: 0,
+    clickCount: 1,
+    type: "mouseReleased",
+    x: dragPoints.endX,
+    y: dragPoints.y,
+  });
+  await delay(100);
 }
 
 async function dragSelectTextToRightWhitespaceByText(cdp, selector, text) {
