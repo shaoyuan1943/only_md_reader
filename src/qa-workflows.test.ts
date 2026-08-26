@@ -110,8 +110,8 @@ void test("GitHub workflows verify the project and publish Windows MSI releases"
 
   assert.match(releaseWorkflow, /Release Windows MSI/);
   assert.match(releaseWorkflow, /tags:\s*\n\s*- "v\*"/);
-  assert.match(releaseWorkflow, /description:\s*"Release tag, for example v0\.1\.9"/);
-  assert.match(releaseWorkflow, /default:\s*"v0\.1\.9"/);
+  assert.match(releaseWorkflow, /description:\s*"Release tag, for example v0\.1\.10"/);
+  assert.match(releaseWorkflow, /default:\s*"v0\.1\.10"/);
   assert.ok(validateReleaseTagStep);
   assert.match(
     validateReleaseTagStep,

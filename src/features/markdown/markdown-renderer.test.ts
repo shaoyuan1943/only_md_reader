@@ -306,6 +306,32 @@ void test("text and unlabeled fenced code blocks render as body-colored plain te
   assert.doesNotMatch(unlabeledRendered.html, /<span[^>]*style=/);
 });
 
+void test("preserves text fenced-code indentation and blank lines", async () => {
+  const rendered = await renderMarkdownDocument({
+    content: [
+      "```text",
+      "playerId",
+      "    玩家唯一 ID。",
+      "",
+      "PlayerSnapshot",
+      "    玩家完整持久化快照的二进制序列化结果。",
+      "",
+      "save_version",
+      "    玩家快照单调递增版本，用于判断新旧顺序。",
+      "```",
+    ].join("\n"),
+    filePath: resolve(fixturesDir, "basic-syntax.md"),
+    themeMode: "light",
+  });
+
+  assert.equal(rendered.error, null);
+  assert.doesNotMatch(rendered.html, /<p[ >]/);
+  assert.match(
+    rendered.html,
+    /<pre[^>]*><code>playerId\n(?:\x20){4}玩家唯一 ID。\n\nPlayerSnapshot\n(?:\x20){4}玩家完整持久化快照的二进制序列化结果。\n\nsave_version\n(?:\x20){4}玩家快照单调递增版本，用于判断新旧顺序。<\/code><\/pre>/s,
+  );
+});
+
 void test("enhances CRLF unlabeled fenced code blocks with the reader code wrapper", async () => {
   const rendered = await renderMarkdownDocument({
     content: ["# CRLF Code", "", "```", "", "alpha # comment", "```", ""].join("\r\n"),

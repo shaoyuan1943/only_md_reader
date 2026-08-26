@@ -1,7 +1,11 @@
 import { toString as hastToString } from "hast-util-to-string";
 import type { Element, Properties, Root } from "hast";
 import { toString as mdastToString } from "mdast-util-to-string";
-import type { Root as MarkdownRoot } from "mdast";
+import type {
+  Code as MarkdownCode,
+  Html as MarkdownHtml,
+  Root as MarkdownRoot,
+} from "mdast";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -277,14 +281,13 @@ export async function renderMarkdownDocument(
 ): Promise<MarkdownRenderResult> {
   try {
     const codeTheme = codeThemeByMode[options.themeMode];
-    const preprocessed = await highlightFencedCode(options.content, options.themeMode);
     const outlineItems = extractOutlineFromAst(options.content);
     const html = String(
       await createMarkdownProcessor({
         codeThemeName: codeTheme.name,
         filePath: options.filePath,
         resolveImageSrc: options.resolveImageSrc,
-      }).process(preprocessed),
+      }).process(options.content),
     );
 
     return {
@@ -349,6 +352,7 @@ function createMarkdownProcessor({
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkMath)
+    .use(remarkReaderEnhancements, { codeThemeName })
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
     .use(rehypeKatex, { throwOnError: false, strict: "ignore" } as never)
@@ -426,45 +430,61 @@ function rehypeReaderEnhancements({
   };
 }
 
-async function highlightFencedCode(
-  content: string,
-  themeMode: ThemeColorMode,
-): Promise<string> {
-  const codeTheme = codeThemeByMode[themeMode];
-  const codeBlockPattern =
-    /(^|\n)(`{3,}|~{3,})([^\r\n`]*)\r?\n([\s\S]*?)\r?\n\2[ \t]*(?=\r?\n|$)/g;
-  const replacements: Array<{ from: string; to: string }> = [];
+function remarkReaderEnhancements({
+  codeThemeName,
+}: {
+  codeThemeName: "Eva Light Bold" | "Eva Dark Bold";
+}) {
+  return async (tree: MarkdownRoot) => {
+    const codeNodes: Array<{
+      index: number;
+      node: MarkdownCode;
+      parent: { children: MarkdownRoot["children"] };
+    }> = [];
 
-  for (const match of content.matchAll(codeBlockPattern)) {
-    const fullMatch = match[0];
-    const fenceStart = match[1] ?? "";
-    const language = normalizeCodeLanguage(match[3] ?? "");
-    const code = match[4] ?? "";
-    const html = isPlainTextCodeLanguage(language)
-      ? renderPlainTextCodeBlock({
-          code,
-          codeThemeName: codeTheme.name,
-          language,
-        })
-      : await highlightCodeBlock({
-          code,
-          codeThemeName: codeTheme.name,
-          language,
-        });
+    visit(tree, "code", (node, index, parent) => {
+      if (
+        !node.lang ||
+        typeof index !== "number" ||
+        !parent ||
+        !Array.isArray(parent.children)
+      ) {
+        return;
+      }
 
-    replacements.push({
-      from: fullMatch,
-      to: `${fenceStart}<div class="markdown-code-scroller"><button class="markdown-code-copy-button" type="button" aria-label="复制代码块" title="复制代码块" data-copy-code="${encodeURIComponent(
-        code,
-      )}"><span class="markdown-code-copy-icon" aria-hidden="true"></span></button>${html}</div>`,
+      codeNodes.push({
+        index,
+        node,
+        parent,
+      });
     });
-  }
 
-  return replacements.reduce(
-    (currentContent, replacement) =>
-      currentContent.replace(replacement.from, replacement.to),
-    content,
-  );
+    for (const { index, node, parent } of codeNodes) {
+      const language = normalizeCodeLanguage(node.lang ?? "");
+      const html = isPlainTextCodeLanguage(language)
+        ? renderPlainTextCodeBlock({
+            code: node.value,
+            codeThemeName,
+            language,
+          })
+        : await highlightCodeBlock({
+            code: node.value,
+            codeThemeName,
+            language,
+          });
+
+      parent.children[index] = {
+        type: "html",
+        value: createCodeBlockHtml(node.value, html),
+      } satisfies MarkdownHtml;
+    }
+  };
+}
+
+function createCodeBlockHtml(code: string, html: string): string {
+  return `<div class="markdown-code-scroller"><button class="markdown-code-copy-button" type="button" aria-label="复制代码块" title="复制代码块" data-copy-code="${encodeURIComponent(
+    code,
+  )}"><span class="markdown-code-copy-icon" aria-hidden="true"></span></button>${html}</div>`;
 }
 
 function isPlainTextCodeLanguage(language: string): boolean {
